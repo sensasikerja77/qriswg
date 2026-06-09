@@ -5,7 +5,7 @@
   const store = params.get('store');
   if (!store) return;
 
-  // ⚠️ GANTI DENGAN RAW URL CONFIG GIST PUNYAMU
+  // ⚠️ GANTI dengan raw URL config.json dari Gist kamu
   const RAW_URL = 'https://gist.githubusercontent.com/sensasikerja77/028a62a9b788046d81dac61df710f36c/raw/25ba4263880120f63193027061fb688220f31d71/config.json';
 
   try {
