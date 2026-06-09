@@ -5,34 +5,21 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Dashboard QRIS</title>
   <style>
-    body { font-family: 'Segoe UI', Arial, sans-serif; padding: 20px; background: #f5f5f5; margin: 0; }
-    h2 { color: #333; margin-bottom: 20px; }
-    table { border-collapse: collapse; width: 100%; background: white; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border-radius: 8px; overflow: hidden; margin-top: 15px; }
-    th { background: #1e293b; color: white; padding: 12px 8px; text-align: left; }
-    td { border-bottom: 1px solid #eee; padding: 10px 8px; }
-    tr:hover { background: #fafafa; }
-    button { padding: 6px 12px; cursor: pointer; border: none; border-radius: 4px; font-weight: bold; }
-    .btn-save { background: #10b981; color: white; }
-    .btn-save:hover { background: #059669; }
-    .btn-logout { background: #e94560; color: white; padding: 8px 16px; float: right; }
-    .btn-logout:hover { background: #c73650; }
-    .setup { background: white; padding: 20px; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); display: none; }
-    .setup h3 { margin-bottom: 12px; color: #1e293b; }
-    .setup input { margin-right: 8px; padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; }
-    .setup input[type="text"] { width: 250px; }
-    .setup input[type="password"] { width: 200px; }
+    body { font-family: Arial; padding: 20px; background: #f5f5f5; margin: 0; }
+    table { border-collapse: collapse; width: 100%; background: white; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    th { background: #1e293b; color: white; padding: 12px; text-align: left; }
+    td { border-bottom: 1px solid #eee; padding: 10px; }
+    button { padding: 6px 12px; cursor: pointer; border: none; border-radius: 4px; background: #10b981; color: white; font-weight: bold; }
+    .setup { background: white; padding: 20px; margin-bottom: 20px; display: none; }
+    .setup input { margin-right: 8px; padding: 8px; }
+    .btn-logout { background: #e94560; float: right; }
     .toolbar { margin-bottom: 15px; overflow: hidden; }
     .toolbar a { margin-left: 10px; text-decoration: none; color: #1e293b; font-weight: bold; }
-    .toolbar a:hover { color: #e94560; }
-    .status { font-size: 13px; margin-left: 8px; }
-    select { padding: 6px; border-radius: 4px; border: 1px solid #ccc; }
-    .mapping-info { font-size: 11px; color: #666; display: block; margin-top: 4px; }
+    select { padding: 6px; }
   </style>
 </head>
 <body>
-  <script>
-    if (!sessionStorage.getItem('qrlogin')) location.href = 'login.html';
-  </script>
+  <script>if (!sessionStorage.getItem('qrlogin')) location.href = 'login.html';</script>
 
   <div class="toolbar">
     <button class="btn-logout" onclick="logout()">🚪 Logout</button>
@@ -41,31 +28,28 @@
   </div>
 
   <div class="setup" id="setupPanel">
-    <h3>⚙️ Setup Konfigurasi</h3>
-    <input type="password" id="tokenInput" placeholder="GitHub Token">
+    <h3>⚙️ Setup</h3>
+    <input type="password" id="tokenInput" placeholder="Token">
     <input type="text" id="gistIdInput" placeholder="Gist ID">
-    <input type="text" id="rawUrlInput" placeholder="Raw URL">
-    <button class="btn-save" onclick="saveSetup()">💾 Simpan & Muat</button>
+    <button onclick="saveSetup()">Simpan</button>
   </div>
 
   <div id="app">⏳ Memuat...</div>
 
   <script>
     var cfg = JSON.parse(localStorage.adminConfig || '{}');
-    if (cfg.token && cfg.gistId && cfg.rawUrl) {
+    if (cfg.token && cfg.gistId) {
       document.getElementById('setupPanel').style.display = 'none';
       load();
     } else {
       document.getElementById('setupPanel').style.display = 'block';
       if (cfg.token) document.getElementById('tokenInput').value = cfg.token;
       if (cfg.gistId) document.getElementById('gistIdInput').value = cfg.gistId;
-      if (cfg.rawUrl) document.getElementById('rawUrlInput').value = cfg.rawUrl;
     }
 
     window.saveSetup = function() {
       cfg.token = document.getElementById('tokenInput').value.trim();
       cfg.gistId = document.getElementById('gistIdInput').value.trim();
-      cfg.rawUrl = document.getElementById('rawUrlInput').value.trim();
       localStorage.adminConfig = JSON.stringify(cfg);
       document.getElementById('setupPanel').style.display = 'none';
       load();
@@ -74,77 +58,28 @@
     var stores = {};
 
     function load() {
-      document.getElementById('app').innerHTML = '⏳ Memuat data...';
-      fetch(`https://api.github.com/gists/${cfg.gistId}`, {
-          headers: { 'Authorization': 'token ' + cfg.token }
-      })
-        .then(r => {
-          if (!r.ok) throw new Error('HTTP ' + r.status);
-          return r.json();
-        })
+      document.getElementById('app').innerHTML = '⏳ Memuat...';
+      fetch(`https://api.github.com/gists/${cfg.gistId}`, { headers: { 'Authorization': 'token ' + cfg.token } })
+        .then(r => r.json())
         .then(gistData => {
-          if (!gistData.files['config.json']) throw new Error('File config.json tidak ditemukan');
           const data = JSON.parse(gistData.files['config.json'].content);
-          stores = data.stores || {};
+          stores = data.stores;
           render();
         })
-        .catch(e => {
-          document.getElementById('app').innerHTML = '<p style="color:red;">❌ ' + e.message + ' <button class="btn-save" onclick="load()">Coba Lagi</button></p>';
-        });
-    }
-
-    function escapeHtml(str) {
-      return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        .catch(e => { document.getElementById('app').innerHTML = '❌ ' + e.message; });
     }
 
     function render() {
-      if (Object.keys(stores).length === 0) {
-        document.getElementById('app').innerHTML = '<p>Belum ada toko.</p>';
-        return;
-      }
-      
-      var html = '<table><tr><th>Toko</th><th>Script Aktif</th><th>Mapping</th><th>Ubah Ke</th><th>Aksi</th></tr>';
-      
-      Object.keys(stores).forEach(function(key) {
+      var html = '<table><tr><th>Toko</th><th>Aktif</th><th>Ubah</th><th>Aksi</th></tr>';
+      Object.keys(stores).forEach(key => {
         var s = stores[key];
-        var sourceKey = s.use_script_from || key;
-        var sourceStore = stores[sourceKey];
-        var isMapping = sourceKey !== key;
-        
-        html += '<tr>';
-        html += '<td><b>' + escapeHtml(s.name) + '</b><br><small style="color:#888;">' + escapeHtml(key) + '</small></td>';
-        
-        if (isMapping && sourceStore) {
-          var activeOpt = sourceStore.script_options[sourceStore.active_index];
-          html += '<td>🔀 ' + (activeOpt ? escapeHtml(activeOpt.name) : '—') + '<span class="mapping-info">(dari ' + escapeHtml(sourceKey) + ')</span></td>';
-        } else {
-          var activeOpt = s.script_options[s.active_index];
-          html += '<td>✅ ' + (activeOpt ? escapeHtml(activeOpt.name) : '—') + '</td>';
-        }
-        
-        html += '<td>';
-        if (isMapping) {
-          html += '<span style="color:#3b82f6;">🔗 ' + escapeHtml(sourceKey) + '</span>';
-        } else {
-          html += '<span style="color:#888;">— (master)</span>';
-        }
-        html += '</td>';
-        
-        // Dropdown untuk ubah active_index (hanya untuk master store)
-        if (!isMapping && s.script_options && s.script_options.length > 0) {
-          html += '<td><select id="sel_' + key + '" style="padding:6px;">';
-          s.script_options.forEach((o, i) => 
-            html += '<option value="' + i + '" ' + (i === s.active_index ? 'selected' : '') + '>' + escapeHtml(o.name) + '</option>'
-          );
-          html += '</select></td>';
-          html += '<td><button class="btn-save" onclick="simpan(\'' + key + '\')">💾 Simpan</button><span class="status" id="st_' + key + '"></span></td>';
-        } else {
-          html += '<td colspan="2" style="color:#888; text-align:center;">(Ikut ' + escapeHtml(sourceKey) + ')</td>';
-        }
-        
-        html += '</tr>';
+        var a = s.script_options[s.active_index];
+        html += '<tr><td><b>' + s.name + '</b></td><td>' + (a ? a.name : '—') + '</td>';
+        html += '<td><select id="sel_' + key + '">';
+        s.script_options.forEach((o, i) => html += '<option value="' + i + '" ' + (i === s.active_index ? 'selected' : '') + '>' + o.name + '</option>');
+        html += '</select></td>';
+        html += '<td><button onclick="simpan(\'' + key + '\')">Simpan</button> <span id="st_' + key + '"></span></td></tr>';
       });
-      
       html += '</table>';
       document.getElementById('app').innerHTML = html;
     }
@@ -152,50 +87,27 @@
     window.simpan = async function(key) {
       var newIdx = document.getElementById('sel_' + key).value;
       var st = document.getElementById('st_' + key);
-      st.textContent = ' ⏳';
-      
+      st.textContent = '⏳';
       try {
-        var gistRes = await fetch('https://api.github.com/gists/' + cfg.gistId, {
-          headers: { 'Authorization': 'token ' + cfg.token }
-        });
-        if (!gistRes.ok) throw new Error('HTTP ' + gistRes.status);
+        var gistRes = await fetch('https://api.github.com/gists/' + cfg.gistId, { headers: { 'Authorization': 'token ' + cfg.token } });
         var gistData = await gistRes.json();
         var config = JSON.parse(gistData.files['config.json'].content);
-        
         var logs = [];
         if (gistData.files['log.json']) {
-          try { logs = JSON.parse(gistData.files['log.json'].content || '[]'); } catch(e) { logs = []; }
+          try { logs = JSON.parse(gistData.files['log.json'].content); } catch(e) {}
         }
-        
         config.stores[key].active_index = parseInt(newIdx);
-        logs.push({ 
-          timestamp: new Date().toISOString(), 
-          store: key, 
-          action: 'Ubah ke: ' + config.stores[key].script_options[newIdx].name 
-        });
-        
+        logs.push({ timestamp: new Date().toISOString(), store: key, action: 'Ubah ke ' + config.stores[key].script_options[newIdx].name });
         var updateRes = await fetch('https://api.github.com/gists/' + cfg.gistId, {
           method: 'PATCH',
-          headers: { 
-            'Authorization': 'token ' + cfg.token, 
-            'Content-Type': 'application/json' 
-          },
-          body: JSON.stringify({ 
-            files: { 
-              'config.json': { content: JSON.stringify(config, null, 2) }, 
-              'log.json': { content: JSON.stringify(logs, null, 2) } 
-            } 
-          })
+          headers: { 'Authorization': 'token ' + cfg.token, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ files: { 'config.json': { content: JSON.stringify(config, null, 2) }, 'log.json': { content: JSON.stringify(logs, null, 2) } } })
         });
-        if (!updateRes.ok) throw new Error('HTTP ' + updateRes.status);
+        if (!updateRes.ok) throw new Error('Gagal');
         stores = config.stores;
         render();
-        st.textContent = ' ✅';
-        setTimeout(() => { if (document.getElementById('st_' + key)) document.getElementById('st_' + key).textContent = ''; }, 3000);
-      } catch(e) { 
-        st.textContent = ' ❌'; 
-        alert('Error: ' + e.message); 
-      }
+        st.textContent = '✅';
+      } catch(e) { st.textContent = '❌'; alert(e.message); }
     };
 
     window.logout = function() {
