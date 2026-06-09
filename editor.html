@@ -1,181 +1,178 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-  <meta charset="utf-8">
+  <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Editor Script - QRIS Admin</title>
+  <title>Editor — QRIS Admin</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Segoe UI', sans-serif; background: #f5f6fa; color: #2d3436; }
-    .header { background: #16213e; color: white; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; }
-    .header h2 { color: #e94560; }
-    .container { max-width: 1000px; margin: 20px auto; padding: 0 15px; }
-    .config-bar { background: white; padding: 15px 20px; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
-    .config-bar input { margin: 5px 5px 5px 0; padding: 8px; width: 220px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; }
-    .config-bar button { padding: 8px 16px; cursor: pointer; background: #e94560; color: white; border: none; border-radius: 4px; font-weight: bold; }
-    .store-block { background: white; border-radius: 8px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
-    .store-block h3 { margin-bottom: 15px; color: #16213e; }
-    .script-group { margin-bottom: 15px; padding: 12px; background: #f9f9f9; border-radius: 6px; }
-    .script-group label { display: block; font-weight: 500; margin-bottom: 5px; }
-    textarea { width: 100%; height: 200px; font-family: 'Consolas', 'Monaco', monospace; font-size: 12px; border: 1px solid #ddd; border-radius: 4px; padding: 10px; resize: vertical; }
-    input.opt-name { font-weight: bold; padding: 6px 10px; width: 250px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 8px; }
-    .actions { margin-top: 15px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-    .actions button { padding: 8px 16px; cursor: pointer; border: none; border-radius: 4px; font-weight: bold; }
-    .save-btn { background: #00b894; color: white; }
-    .save-btn:hover { background: #00a381; }
-    .add-btn { background: #0984e3; color: white; }
-    .add-btn:hover { background: #0767b3; }
-    .del-btn { background: #e94560; color: white; font-size: 12px; padding: 4px 10px; }
-    .del-btn:hover { background: #c23152; }
-    .status { font-size: 0.9em; color: #00b894; }
-    .logout-btn { background: #e94560; color: white; border: none; padding: 8px 18px; border-radius: 4px; cursor: pointer; font-weight: bold; }
-    .logout-btn:hover { background: #c23152; }
-    .nav { margin-bottom: 15px; }
-    .nav a { color: #16213e; text-decoration: none; margin-right: 20px; font-weight: 500; }
-    .nav a:hover { text-decoration: underline; }
+    body {
+      font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+      background: #f8fafc;
+      color: #0f172a;
+    }
+    nav {
+      background: #0f172a;
+      color: white;
+      padding: 0 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 64px;
+    }
+    nav .brand { font-weight: 700; font-size: 20px; color: #e94560; }
+    nav .links a { color: #cbd5e1; text-decoration: none; margin-left: 24px; font-weight: 500; }
+    nav .links a.active { color: white; }
+    nav button { background: rgba(255,255,255,0.1); border: none; color: #e2e8f0; padding: 8px 16px; border-radius: 8px; cursor: pointer; }
+    .container { max-width: 1100px; margin: 32px auto; padding: 0 20px; }
+    .store-block {
+      background: white;
+      border: 1px solid #e2e8f0;
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 24px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+    textarea {
+      width: 100%;
+      height: 180px;
+      font-family: 'Fira Code', monospace;
+      font-size: 13px;
+      border: 1px solid #cbd5e1;
+      border-radius: 10px;
+      padding: 12px;
+      resize: vertical;
+    }
+    .opt-name-input {
+      font-weight: 600;
+      padding: 6px 10px;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      margin-bottom: 8px;
+    }
+    .btn {
+      padding: 8px 16px;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      font-weight: 500;
+      margin-right: 8px;
+    }
+    .btn-save { background: #10b981; color: white; }
+    .btn-add { background: #3b82f6; color: white; }
+    .btn-delete { background: #e94560; color: white; }
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: #0f172a;
+      color: white;
+      padding: 12px 24px;
+      border-radius: 12px;
+      z-index: 1000;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    .toast.show { opacity: 1; }
   </style>
 </head>
 <body>
   <script>
-    if (!sessionStorage.getItem('qrlogin')) { window.location.href = 'login.html'; }
+    if (!sessionStorage.getItem('qrlogin')) window.location.href = 'login.html';
   </script>
-
-  <div class="header">
-    <h2>✏️ Editor Script QRIS</h2>
-    <button class="logout-btn" onclick="logout()">Logout</button>
-  </div>
-
-  <div class="container">
-    <div class="nav">
-      <a href="index.html">🏠 Dashboard</a>
-      <a href="editor.html">✏️ Editor Script</a>
+  <nav>
+    <div class="brand">⚡ QRIS Admin</div>
+    <div class="links">
+      <a href="index.html">📊 Dashboard</a>
+      <a href="editor.html" class="active">✏️ Editor</a>
     </div>
-
-    <div class="config-bar" id="configBar" style="display: none;">
-      <strong>⚙️ Pengaturan</strong><br>
-      Token: <input type="password" id="tokenInput"><br>
-      Gist ID: <input type="text" id="gistIdInput"><br>
-      Raw URL: <input type="text" id="rawUrlInput"><br>
-      <button onclick="saveConfig()">Simpan & Muat</button>
-    </div>
-
-    <div id="container"></div>
-  </div>
+    <button onclick="logout()">Logout</button>
+  </nav>
+  <div class="container" id="editorContainer"></div>
+  <div class="toast" id="toast"></div>
 
   <script>
-    let CONFIG = {};
-    if(localStorage.adminConfig) {
-      CONFIG = JSON.parse(localStorage.adminConfig);
-      if(CONFIG.token && CONFIG.gistId && CONFIG.rawUrl) {
-        document.getElementById('configBar').style.display = 'none';
-        loadData();
-      } else {
-        document.getElementById('configBar').style.display = 'block';
-        if(CONFIG.token) document.getElementById('tokenInput').value = CONFIG.token;
-        if(CONFIG.gistId) document.getElementById('gistIdInput').value = CONFIG.gistId;
-        if(CONFIG.rawUrl) document.getElementById('rawUrlInput').value = CONFIG.rawUrl;
-      }
+    let CONFIG = JSON.parse(localStorage.adminConfig || '{}');
+    if (!CONFIG.token || !CONFIG.rawUrl) {
+      document.body.innerHTML = '<div style="padding:40px;">⚠️ Silakan isi konfigurasi di <a href="index.html">Dashboard</a> terlebih dahulu.</div>';
     } else {
-      document.getElementById('configBar').style.display = 'block';
-    }
-
-    async function saveConfig() {
-      CONFIG.token = document.getElementById('tokenInput').value.trim();
-      CONFIG.gistId = document.getElementById('gistIdInput').value.trim();
-      CONFIG.rawUrl = document.getElementById('rawUrlInput').value.trim();
-      localStorage.adminConfig = JSON.stringify(CONFIG);
-      document.getElementById('configBar').style.display = 'none';
-      await loadData();
+      loadData();
     }
 
     let data = {};
     async function loadData() {
       try {
-        const res = await fetch(CONFIG.rawUrl);
+        const res = await fetch(CONFIG.rawUrl + '?t=' + Date.now());
         data = await res.json();
         renderEditor();
-      } catch(e) { alert('Gagal load data.'); }
+      } catch(e) { showToast('❌ Gagal memuat'); }
     }
 
     function renderEditor() {
-      const container = document.getElementById('container');
+      const container = document.getElementById('editorContainer');
       container.innerHTML = '';
       Object.entries(data.stores).forEach(([key, store]) => {
         const div = document.createElement('div');
         div.className = 'store-block';
-        div.id = `block-${key}`;
-        div.innerHTML = `<h3>🏪 ${store.name} <small style="color:#888;">(${key})</small></h3>`;
+        div.innerHTML = `<h3>🏪 ${store.name} <small style="color:#64748b;">(${key})</small></h3>`;
         store.script_options.forEach((opt, i) => {
           div.innerHTML += `
-            <div class="script-group" id="opt-${key}-${i}">
-              <label>Opsi ${i+1}:</label>
-              <input type="text" class="opt-name" data-key="${key}" data-idx="${i}" value="${opt.name || ''}">
+            <div style="margin-top:16px;">
+              <input class="opt-name-input" value="${opt.name}" data-key="${key}" data-idx="${i}">
               <textarea data-key="${key}" data-idx="${i}">${opt.code || ''}</textarea>
-              <button class="del-btn" onclick="deleteOption('${key}', ${i})">🗑 Hapus Opsi</button>
+              <button class="btn btn-delete" onclick="deleteOption('${key}',${i})">🗑 Hapus</button>
             </div>`;
         });
         div.innerHTML += `
-          <div class="actions">
-            <button class="add-btn" onclick="addOption('${key}')">➕ Tambah Opsi</button>
-            <button class="save-btn" onclick="saveStore('${key}')">💾 Simpan Perubahan Script</button>
-            <span class="status" id="status-${key}"></span>
+          <div style="margin-top:16px;">
+            <button class="btn btn-add" onclick="addOption('${key}')">➕ Tambah Opsi</button>
+            <button class="btn btn-save" onclick="saveStore('${key}')">💾 Simpan</button>
+            <span id="status-${key}" style="margin-left:12px;"></span>
           </div>`;
         container.appendChild(div);
       });
     }
 
     function addOption(key) {
-      const store = data.stores[key];
-      store.script_options.push({ name: 'Opsi Baru', code: '' });
+      data.stores[key].script_options.push({ name: 'Opsi Baru', code: '' });
       renderEditor();
     }
 
     function deleteOption(key, idx) {
-      const store = data.stores[key];
-      if (store.script_options.length <= 1) {
-        alert('Minimal harus ada 1 opsi script.');
-        return;
-      }
-      store.script_options.splice(idx, 1);
-      if (store.active_index >= store.script_options.length) {
-        store.active_index = store.script_options.length - 1;
-      }
+      if (data.stores[key].script_options.length <= 1) return alert('Minimal 1 opsi.');
+      data.stores[key].script_options.splice(idx, 1);
+      if (data.stores[key].active_index >= data.stores[key].script_options.length)
+        data.stores[key].active_index = data.stores[key].script_options.length - 1;
       renderEditor();
     }
 
     async function saveStore(key) {
+      if (!confirm('Simpan perubahan script untuk ' + key + '?')) return;
       const store = data.stores[key];
-      document.querySelectorAll(`.opt-name[data-key="${key}"]`).forEach((inp, i) => {
+      document.querySelectorAll(`[data-key="${key}"].opt-name-input`).forEach((inp,i) => {
         if (store.script_options[i]) store.script_options[i].name = inp.value;
       });
-      document.querySelectorAll(`textarea[data-key="${key}"]`).forEach((ta, i) => {
+      document.querySelectorAll(`textarea[data-key="${key}"]`).forEach((ta,i) => {
         if (store.script_options[i]) store.script_options[i].code = ta.value;
       });
-
-      const status = document.getElementById(`status-${key}`);
-      status.textContent = '⏳ Menyimpan...';
-
-      const logEntry = {
-        timestamp: new Date().toISOString(),
-        store: key,
-        action: `Edit kode script`,
-        user_agent: navigator.userAgent
-      };
-
+      const st = document.getElementById('status-'+key);
+      st.textContent = '⏳';
       try {
-        const gistUrl = `https://api.github.com/gists/${CONFIG.gistId}`;
-        const gistRes = await fetch(gistUrl, { headers: { 'Authorization': `token ${CONFIG.token}` } });
+        const gistRes = await fetch(`https://api.github.com/gists/${CONFIG.gistId}`, {
+          headers: { 'Authorization': `token ${CONFIG.token}` }
+        });
         const gistData = await gistRes.json();
         let logs = [];
         try { logs = JSON.parse(gistData.files['log.json'].content); } catch(e){}
-        logs.push(logEntry);
-
-        const updateRes = await fetch(gistUrl, {
+        logs.push({
+          timestamp: new Date().toISOString(),
+          store: key,
+          action: 'Edit kode script',
+          user_agent: navigator.userAgent
+        });
+        const updateRes = await fetch(`https://api.github.com/gists/${CONFIG.gistId}`, {
           method: 'PATCH',
-          headers: {
-            'Authorization': `token ${CONFIG.token}`,
-            'Content-Type': 'application/json'
-          },
+          headers: { 'Authorization': `token ${CONFIG.token}`, 'Content-Type': 'application/json' },
           body: JSON.stringify({
             files: {
               'config.json': { content: JSON.stringify(data, null, 2) },
@@ -183,13 +180,17 @@
             }
           })
         });
+        st.textContent = updateRes.ok ? '✅' : '❌';
+        showToast(updateRes.ok ? '✅ Tersimpan' : '❌ Gagal');
+      } catch(e) { st.textContent = '❌'; }
+      setTimeout(() => st.textContent = '', 2000);
+    }
 
-        if (updateRes.ok) {
-          status.textContent = '✅ Tersimpan';
-        } else {
-          status.textContent = '❌ Gagal';
-        }
-      } catch(e) { status.textContent = '❌ Error'; }
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 2500);
     }
 
     function logout() {
