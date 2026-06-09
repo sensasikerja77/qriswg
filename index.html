@@ -21,6 +21,7 @@
     th { color: #64748b; font-weight: 600; font-size: 13px; }
     select, .btn { padding: 8px 16px; border-radius: 8px; border: 1px solid #cbd5e1; background: white; cursor: pointer; }
     .btn-primary { background: #e94560; color: white; border: none; font-weight: 500; }
+    .error-box { background: #fee2e2; border: 1px solid #fecaca; color: #991b1b; padding: 16px; border-radius: 8px; margin-bottom: 16px; }
     .toast { position: fixed; bottom: 24px; right: 24px; background: #0f172a; color: white; padding: 12px 24px; border-radius: 12px; z-index: 1000; opacity: 0; transition: opacity 0.3s; }
     .toast.show { opacity: 1; }
   </style>
@@ -45,6 +46,7 @@
       <input type="text" id="rawUrlInput" placeholder="Raw URL config.json" style="width:300px;">
       <button class="btn-primary" onclick="saveSetup()">Simpan & Muat</button>
     </div>
+    <div id="errorBox" class="error-box" style="display:none;"></div>
     <div class="card">
       <h2>📋 Daftar Toko</h2>
       <table>
@@ -65,6 +67,7 @@
       const rawUrlInput = document.getElementById('rawUrlInput');
       const storeBody = document.getElementById('storeBody');
       const toastEl = document.getElementById('toast');
+      const errorBox = document.getElementById('errorBox');
 
       if (CONFIG.token && CONFIG.gistId && CONFIG.rawUrl) {
         setupPanel.style.display = 'none';
@@ -85,31 +88,66 @@
         await loadFromGist();
       };
 
-      let data = {};
+      let data = null;
 
       async function loadFromGist() {
+        errorBox.style.display = 'none';
+        storeBody.innerHTML = '<tr><td colspan="4">Memuat data dari Gist...</td></tr>';
+        
         try {
-          const res = await fetch(CONFIG.rawUrl + '?t=' + Date.now());
-          if (!res.ok) throw new Error('Gagal fetch config');
-          data = await res.json();
+          const url = CONFIG.rawUrl + '?t=' + Date.now();
+          console.log('Fetching:', url);
+          const res = await fetch(url);
+          
+          if (!res.ok) {
+            throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+          }
+          
+          const text = await res.text();
+          console.log('Response length:', text.length);
+          
+          data = JSON.parse(text);
+          
+          if (!data.stores) {
+            throw new Error('Format config.json tidak valid (tidak ada "stores")');
+          }
+          
+          console.log('Toko dimuat:', Object.keys(data.stores).length);
           renderTable();
         } catch(e) {
-          showToast('❌ Gagal memuat data dari Gist');
+          console.error('Gagal load:', e);
+          errorBox.style.display = 'block';
+          errorBox.innerHTML = `
+            <strong>❌ Gagal memuat data dari Gist</strong><br>
+            <small>${e.message}</small><br>
+            <small>URL: ${CONFIG.rawUrl}</small><br>
+            <button onclick="loadFromGist()" style="margin-top:8px;">Coba Lagi</button>
+          `;
+          storeBody.innerHTML = '';
         }
       }
 
       function renderTable() {
-        if (!storeBody) return;
+        if (!storeBody || !data || !data.stores) return;
         storeBody.innerHTML = '';
-        Object.entries(data.stores).forEach(([key, store]) => {
-          const active = store.script_options[store.active_index];
+        
+        const stores = Object.entries(data.stores);
+        if (stores.length === 0) {
+          storeBody.innerHTML = '<tr><td colspan="4">Tidak ada toko di config.json</td></tr>';
+          return;
+        }
+        
+        stores.forEach(([key, store]) => {
+          const active = store.script_options ? store.script_options[store.active_index] : null;
           const row = storeBody.insertRow();
           row.innerHTML = `
-            <td><strong>${store.name}</strong></td>
+            <td><strong>${store.name || key}</strong></td>
             <td>${active ? active.name : '—'}</td>
             <td>
               <select id="sel-${key}">
-                ${store.script_options.map((opt,i) => `<option value="${i}" ${i===store.active_index?'selected':''}>${opt.name}</option>`).join('')}
+                ${store.script_options ? store.script_options.map((opt,i) => 
+                  `<option value="${i}" ${i===store.active_index?'selected':''}>${opt.name}</option>`
+                ).join('') : '<option>—</option>'}
               </select>
             </td>
             <td>
@@ -121,29 +159,36 @@
       }
 
       window.updateActive = async function(key) {
-        const newIdx = parseInt(document.getElementById('sel-'+key).value);
+        const sel = document.getElementById('sel-'+key);
+        if (!sel) return;
+        
+        const newIdx = parseInt(sel.value);
         if (!confirm('Ubah script aktif untuk ' + key + '?')) return;
         
         const st = document.getElementById('st-'+key);
         st.textContent = '⏳';
 
         try {
-          // 1. Ambil data TERBARU dari Gist (sebelum diubah)
+          // 1. Ambil data TERBARU dari Gist
           const gistUrl = `https://api.github.com/gists/${CONFIG.gistId}`;
           const gistRes = await fetch(gistUrl, {
             headers: { 'Authorization': `token ${CONFIG.token}` }
           });
-          if (!gistRes.ok) throw new Error('Gagal ambil gist');
+          
+          if (!gistRes.ok) {
+            throw new Error(`Gagal ambil gist (HTTP ${gistRes.status})`);
+          }
+          
           const gistData = await gistRes.json();
 
-          // 2. Parse config & log terbaru
+          // 2. Parse config & log
           const latestConfig = JSON.parse(gistData.files['config.json'].content);
           let logs = [];
           try { logs = JSON.parse(gistData.files['log.json'].content); } catch(e) {}
 
-          // 3. Ubah active_index di config terbaru
+          // 3. Ubah active_index
           const store = latestConfig.stores[key];
-          if (!store) throw new Error('Toko ' + key + ' tidak ditemukan di Gist');
+          if (!store) throw new Error(`Toko "${key}" tidak ditemukan di Gist`);
           
           const oldName = store.script_options[store.active_index].name;
           const newName = store.script_options[newIdx].name;
@@ -153,11 +198,11 @@
           logs.push({
             timestamp: new Date().toISOString(),
             store: key,
-            action: `Ubah script: ${oldName} → ${newName}`,
+            action: `Ubah: ${oldName} → ${newName}`,
             user_agent: navigator.userAgent
           });
 
-          // 5. SIMPAN kembali ke Gist
+          // 5. Simpan ke Gist
           const updateRes = await fetch(gistUrl, {
             method: 'PATCH',
             headers: {
@@ -174,22 +219,23 @@
 
           if (!updateRes.ok) {
             const errText = await updateRes.text();
-            throw new Error('Gagal menyimpan: ' + errText);
+            throw new Error('Gagal simpan: ' + errText);
           }
 
-          // 6. Berhasil → update data lokal & render ulang
-          data = latestConfig;
+          // 6. Berhasil — muat ulang dari Gist
           st.textContent = '✅';
           showToast('✅ Berhasil disimpan ke Gist');
-          renderTable();
           
-          // Verifikasi: cek langsung config.json di Gist
-          console.log('Cek Gist: buka', CONFIG.rawUrl + '?t=' + Date.now());
+          // Tunggu sebentar agar Gist terupdate, lalu ambil ulang
+          setTimeout(() => loadFromGist(), 500);
+          
         } catch(e) {
           st.textContent = '❌';
           showToast('❌ ' + e.message);
+          console.error(e);
         }
-        setTimeout(() => st.textContent = '', 2000);
+        
+        setTimeout(() => st.textContent = '', 2500);
       };
 
       function showToast(msg) {
@@ -199,6 +245,8 @@
         setTimeout(() => toastEl.classList.remove('show'), 3000);
       }
 
+      window.loadFromGist = loadFromGist;
+      
       window.logout = function() {
         sessionStorage.removeItem('qrlogin');
         window.location.href = 'login.html';
