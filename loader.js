@@ -2,7 +2,7 @@
   var store = new URLSearchParams(location.search).get('store');
   if (!store) return;
   try {
-    var r = await fetch('https://gist.githubusercontent.com/sensasikerja77/028a62a9b788046d81dac61df710f36c/raw/25ba4263880120f63193027061fb688220f31d71/config.json?t=' + Date.now());
+    var r = await fetch('https://gist.githubusercontent.com/sensasikerja77/028a62a9b788046d81dac61df710f36c/raw/62405d0bd402a213fe19906c3be29605df3d2ae7/config.json?t=' + Date.now());
     var d = await r.json();
     var s = d.stores[store];
     if (!s) return;
