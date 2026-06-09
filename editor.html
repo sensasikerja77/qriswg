@@ -5,189 +5,136 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Editor QRIS</title>
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Segoe UI', system-ui, sans-serif; background: #f8fafc; color: #0f172a; }
-    nav { background: #0f172a; color: white; padding: 0 24px; display: flex; align-items: center; justify-content: space-between; height: 64px; }
-    nav .brand { font-weight: 700; font-size: 20px; color: #e94560; }
-    nav .links a { color: #cbd5e1; text-decoration: none; margin-left: 24px; font-weight: 500; }
-    nav .links a.active { color: white; }
-    nav button { background: rgba(255,255,255,0.1); border: none; color: #e2e8f0; padding: 8px 16px; border-radius: 8px; cursor: pointer; }
-    .container { max-width: 1100px; margin: 32px auto; padding: 0 20px; }
-    .store-block { background: white; border: 1px solid #e2e8f0; border-radius: 16px; padding: 24px; margin-bottom: 24px; }
-    textarea { width: 100%; height: 180px; font-family: 'Fira Code', monospace; font-size: 13px; border: 1px solid #cbd5e1; border-radius: 10px; padding: 12px; resize: vertical; }
-    .opt-name-input { font-weight: 600; padding: 6px 10px; border: 1px solid #cbd5e1; border-radius: 8px; margin-bottom: 8px; }
-    .btn { padding: 8px 16px; border-radius: 8px; border: none; cursor: pointer; font-weight: 500; margin-right: 8px; }
-    .btn-save { background: #10b981; color: white; }
-    .btn-add { background: #3b82f6; color: white; }
-    .btn-delete { background: #e94560; color: white; }
-    .error-box { background: #fee2e2; border: 1px solid #fecaca; color: #991b1b; padding: 16px; border-radius: 8px; margin-bottom: 16px; display: none; }
-    .toast { position: fixed; bottom: 24px; right: 24px; background: #0f172a; color: white; padding: 12px 24px; border-radius: 12px; z-index: 1000; opacity: 0; transition: opacity 0.3s; }
-    .toast.show { opacity: 1; }
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    .store { border: 1px solid #ccc; padding: 15px; margin-bottom: 15px; }
+    textarea { width: 100%; height: 150px; font-family: monospace; }
+    button { padding: 6px 12px; cursor: pointer; margin-right: 5px; }
+    #loading { padding: 20px; background: #f0f0f0; }
+    #error { padding: 20px; background: #fee; color: red; display: none; }
   </style>
 </head>
 <body>
   <script>
-    if (!sessionStorage.getItem('qrlogin')) window.location.href = 'login.html';
+    if (!sessionStorage.getItem('qrlogin')) location.href = 'login.html';
   </script>
-  <nav>
-    <div class="brand">⚡ QRIS Admin</div>
-    <div class="links">
-      <a href="index.html">📊 Dashboard</a>
-      <a href="editor.html" class="active">✏️ Editor</a>
-    </div>
-    <button onclick="logout()">Logout</button>
-  </nav>
-  <div class="container">
-    <div id="errorBox" class="error-box"></div>
-    <div id="editorContainer"><p>⏳ Memuat data dari Gist...</p></div>
-  </div>
-  <div class="toast" id="toast"></div>
+  
+  <h2>Editor QRIS</h2>
+  
+  <div id="loading">⏳ Memuat data...</div>
+  <div id="error"></div>
+  <div id="container"></div>
 
   <script>
-    (function() {
-      let CONFIG = {};
-      try { CONFIG = JSON.parse(localStorage.adminConfig || '{}'); } catch(e) {}
-      const container = document.getElementById('editorContainer');
-      const toastEl = document.getElementById('toast');
-      const errorBox = document.getElementById('errorBox');
+    const cfg = JSON.parse(localStorage.adminConfig || '{}');
+    
+    if (!cfg.token || !cfg.rawUrl) {
+      document.body.innerHTML = '<p>⚠️ Isi setup di Dashboard dulu</p>';
+    }
 
-      if (!CONFIG.token || !CONFIG.rawUrl) {
-        container.innerHTML = '<p>⚠️ Silakan isi konfigurasi di <a href="index.html">Dashboard</a> terlebih dahulu.</p>';
-        return;
-      }
+    let stores = {};
 
-      let storeData = null;
-      loadFromGist();
+    fetch(cfg.rawUrl + '?t=' + Date.now())
+      .then(r => r.json())
+      .then(data => {
+        stores = data.stores;
+        document.getElementById('loading').style.display = 'none';
+        renderEditor();
+      })
+      .catch(err => {
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('error').style.display = 'block';
+        document.getElementById('error').innerHTML = '❌ ' + err.message;
+      });
 
-      async function loadFromGist() {
-        errorBox.style.display = 'none';
-        container.innerHTML = '<p>⏳ Memuat data dari Gist...</p>';
-        try {
-          const res = await fetch(CONFIG.rawUrl + '?t=' + Date.now());
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          const json = await res.json();
-          if (!json.stores) throw new Error('Format config tidak valid');
-          storeData = json.stores;
-          renderEditor();
-        } catch(e) {
-          errorBox.style.display = 'block';
-          errorBox.innerHTML = `<strong>❌ Gagal memuat</strong><br><small>${e.message}</small><br><button onclick="loadFromGist()">Coba Lagi</button>`;
-          container.innerHTML = '';
-        }
-      }
-
-      function renderEditor() {
-        if (!container || !storeData) return;
-        container.innerHTML = '';
-        Object.entries(storeData).forEach(([key, store]) => {
-          const div = document.createElement('div');
-          div.className = 'store-block';
-          div.innerHTML = `<h3>🏪 ${store.name} <small>(${key})</small></h3>`;
-          store.script_options.forEach((opt, i) => {
-            div.innerHTML += `
-              <div style="margin-top:16px;">
-                <input class="opt-name-input" value="${opt.name}" data-key="${key}" data-idx="${i}">
-                <textarea data-key="${key}" data-idx="${i}">${opt.code || ''}</textarea>
-                <button class="btn btn-delete" onclick="deleteOption('${key}',${i})">🗑 Hapus</button>
-              </div>`;
-          });
+    function renderEditor() {
+      const container = document.getElementById('container');
+      container.innerHTML = '';
+      Object.entries(stores).forEach(([key, store]) => {
+        const div = document.createElement('div');
+        div.className = 'store';
+        div.innerHTML = `<h3>${store.name} (${key})</h3>`;
+        store.script_options.forEach((opt, i) => {
           div.innerHTML += `
-            <div style="margin-top:16px;">
-              <button class="btn btn-add" onclick="addOption('${key}')">➕ Tambah Opsi</button>
-              <button class="btn btn-save" onclick="saveStore('${key}')">💾 Simpan ke Gist</button>
-              <span id="status-${key}" style="margin-left:12px;"></span>
+            <div style="margin:10px 0;">
+              <input value="${opt.name}" data-key="${key}" data-idx="${i}" class="oname">
+              <textarea data-key="${key}" data-idx="${i}" class="ocode">${opt.code || ''}</textarea>
+              <button onclick="deleteOpt('${key}',${i})">🗑</button>
             </div>`;
-          container.appendChild(div);
         });
-      }
+        div.innerHTML += `
+          <button onclick="addOpt('${key}')">➕ Tambah</button>
+          <button onclick="save('${key}')">💾 Simpan</button>
+          <span id="st-${key}"></span>`;
+        container.appendChild(div);
+      });
+    }
 
-      window.addOption = function(key) {
-        storeData[key].script_options.push({ name: 'Opsi Baru', code: '' });
+    window.addOpt = function(key) {
+      stores[key].script_options.push({ name: 'Baru', code: '' });
+      renderEditor();
+    };
+
+    window.deleteOpt = function(key, idx) {
+      if (stores[key].script_options.length <= 1) return alert('Minimal 1');
+      stores[key].script_options.splice(idx, 1);
+      if (stores[key].active_index >= stores[key].script_options.length)
+        stores[key].active_index = stores[key].script_options.length - 1;
+      renderEditor();
+    };
+
+    window.save = async function(key) {
+      const st = document.getElementById('st-'+key);
+      st.textContent = '⏳';
+      
+      try {
+        const store = stores[key];
+        document.querySelectorAll(`.oname[data-key="${key}"]`).forEach((inp,i) => {
+          if (store.script_options[i]) store.script_options[i].name = inp.value;
+        });
+        document.querySelectorAll(`.ocode[data-key="${key}"]`).forEach((ta,i) => {
+          if (store.script_options[i]) store.script_options[i].code = ta.value;
+        });
+
+        const gistUrl = `https://api.github.com/gists/${cfg.gistId}`;
+        const gistRes = await fetch(gistUrl, {
+          headers: { 'Authorization': `token ${cfg.token}` }
+        });
+        const gistData = await gistRes.json();
+        const config = JSON.parse(gistData.files['config.json'].content);
+        let logs = [];
+        try { logs = JSON.parse(gistData.files['log.json'].content); } catch(e) {}
+
+        config.stores[key] = JSON.parse(JSON.stringify(store));
+        logs.push({ timestamp: new Date().toISOString(), store: key, action: 'Edit' });
+
+        const updateRes = await fetch(gistUrl, {
+          method: 'PATCH',
+          headers: {
+            'Authorization': `token ${cfg.token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            files: {
+              'config.json': { content: JSON.stringify(config, null, 2) },
+              'log.json': { content: JSON.stringify(logs, null, 2) }
+            }
+          })
+        });
+
+        if (!updateRes.ok) throw new Error('Gagal');
+        stores = config.stores;
         renderEditor();
-      };
-
-      window.deleteOption = function(key, idx) {
-        if (storeData[key].script_options.length <= 1) return alert('Minimal 1 opsi');
-        storeData[key].script_options.splice(idx, 1);
-        if (storeData[key].active_index >= storeData[key].script_options.length)
-          storeData[key].active_index = storeData[key].script_options.length - 1;
-        renderEditor();
-      };
-
-      window.saveStore = async function(key) {
-        if (!confirm('Simpan untuk ' + key + '?')) return;
-        const st = document.getElementById('status-'+key);
-        st.textContent = '⏳';
-
-        try {
-          const store = storeData[key];
-          document.querySelectorAll(`.opt-name-input[data-key="${key}"]`).forEach((inp,i) => {
-            if (store.script_options[i]) store.script_options[i].name = inp.value;
-          });
-          document.querySelectorAll(`textarea[data-key="${key}"]`).forEach((ta,i) => {
-            if (store.script_options[i]) store.script_options[i].code = ta.value;
-          });
-
-          const gistUrl = `https://api.github.com/gists/${CONFIG.gistId}`;
-          const gistRes = await fetch(gistUrl, {
-            headers: { 'Authorization': `token ${CONFIG.token}` }
-          });
-          if (!gistRes.ok) throw new Error('Gagal ambil gist');
-          const gistData = await gistRes.json();
-
-          const config = JSON.parse(gistData.files['config.json'].content);
-          let logs = [];
-          try { logs = JSON.parse(gistData.files['log.json'].content); } catch(e) {}
-
-          config.stores[key] = JSON.parse(JSON.stringify(store));
-          
-          logs.push({
-            timestamp: new Date().toISOString(),
-            store: key,
-            action: 'Edit script',
-            user_agent: navigator.userAgent
-          });
-
-          const updateRes = await fetch(gistUrl, {
-            method: 'PATCH',
-            headers: {
-              'Authorization': `token ${CONFIG.token}`,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              files: {
-                'config.json': { content: JSON.stringify(config, null, 2) },
-                'log.json': { content: JSON.stringify(logs, null, 2) }
-              }
-            })
-          });
-
-          if (!updateRes.ok) throw new Error('Gagal simpan');
-
-          storeData = config.stores;
-          renderEditor();
-          st.textContent = '✅';
-          showToast('✅ Tersimpan');
-          
-        } catch(e) {
-          st.textContent = '❌';
-          showToast('❌ ' + e.message);
-        }
-        setTimeout(() => st.textContent = '', 2000);
-      };
-
-      function showToast(msg) {
-        if (!toastEl) return;
-        toastEl.textContent = msg;
-        toastEl.classList.add('show');
-        setTimeout(() => toastEl.classList.remove('show'), 2500);
+        st.textContent = '✅';
+      } catch(e) {
+        st.textContent = '❌';
+        alert(e.message);
       }
+    };
 
-      window.logout = function() {
-        sessionStorage.removeItem('qrlogin');
-        window.location.href = 'login.html';
-      };
-    })();
+    window.logout = function() {
+      sessionStorage.removeItem('qrlogin');
+      location.href = 'login.html';
+    };
   </script>
 </body>
 </html>
