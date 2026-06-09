@@ -1,10 +1,10 @@
-// QRIS Admin Loader v4 — Online dari Gist
+// QRIS Admin Loader v4 — Baca dari Gist (online)
 (async function() {
   const params = new URLSearchParams(window.location.search);
   const store = params.get('store');
   if (!store) return;
 
-  const RAW_URL = 'https://gist.githubusercontent.com/sensasikerja77/028a62a9b788046d81dac61df710f36c/raw/25ba4263880120f63193027061fb688220f31d71/config.json';
+  const RAW_URL = 'https://gist.githubusercontent.com/sensasikerja77/028a62a9b788046d81dac61df710f36c/raw/25ba4263880120f63193027061fb688220f31d71/config.json'; // GANTI
 
   try {
     const res = await fetch(RAW_URL + '?t=' + Date.now());
