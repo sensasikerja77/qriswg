@@ -1,96 +1,171 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-  <meta charset="utf-8">
+  <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dashboard - QRIS Admin</title>
+  <title>Dashboard — QRIS Admin</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Segoe UI', sans-serif; background: #f5f6fa; color: #2d3436; }
-    .header { background: #16213e; color: white; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; }
-    .header h2 { color: #e94560; }
-    .container { max-width: 900px; margin: 20px auto; padding: 0 15px; }
-    .config-bar { background: white; padding: 15px 20px; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
-    .config-bar input { margin: 5px 5px 5px 0; padding: 8px; width: 220px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; }
-    .config-bar button { padding: 8px 16px; cursor: pointer; background: #e94560; color: white; border: none; border-radius: 4px; font-weight: bold; }
-    table { width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
-    th, td { border: 1px solid #eee; padding: 12px 15px; text-align: left; }
-    th { background: #16213e; color: white; font-weight: 500; }
-    td { font-size: 14px; }
-    select, td button { padding: 6px 12px; border-radius: 4px; border: 1px solid #ccc; cursor: pointer; }
-    td button { background: #00b894; color: white; border: none; }
-    td button:hover { background: #00a381; }
-    .status { font-size: 0.85em; color: #00b894; margin-left: 8px; }
-    .logout-btn { background: #e94560; color: white; border: none; padding: 8px 18px; border-radius: 4px; cursor: pointer; font-weight: bold; }
-    .logout-btn:hover { background: #c23152; }
-    .nav { margin-bottom: 15px; }
-    .nav a { color: #16213e; text-decoration: none; margin-right: 20px; font-weight: 500; }
-    .nav a:hover { text-decoration: underline; }
+    body {
+      font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+      background: #f8fafc;
+      color: #0f172a;
+    }
+    nav {
+      background: #0f172a;
+      color: white;
+      padding: 0 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 64px;
+    }
+    nav .brand {
+      font-weight: 700;
+      font-size: 20px;
+      color: #e94560;
+    }
+    nav .links a {
+      color: #cbd5e1;
+      text-decoration: none;
+      margin-left: 24px;
+      font-weight: 500;
+    }
+    nav .links a.active { color: white; }
+    nav button {
+      background: rgba(255,255,255,0.1);
+      border: none;
+      color: #e2e8f0;
+      padding: 8px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 500;
+    }
+    .container { max-width: 1100px; margin: 32px auto; padding: 0 20px; }
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: #0f172a;
+      color: white;
+      padding: 12px 24px;
+      border-radius: 12px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+      z-index: 1000;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s;
+    }
+    .toast.show { opacity: 1; }
+    .setup-panel {
+      background: white;
+      border: 1px solid #e2e8f0;
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 32px;
+      display: none;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+    .setup-panel input {
+      margin-right: 8px;
+      padding: 10px 14px;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+    }
+    .card {
+      background: white;
+      border: 1px solid #e2e8f0;
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 14px 16px; border-bottom: 1px solid #f1f5f9; text-align: left; }
+    th { color: #64748b; font-weight: 600; font-size: 13px; }
+    select, .btn {
+      padding: 8px 16px;
+      border-radius: 8px;
+      border: 1px solid #cbd5e1;
+      background: white;
+      cursor: pointer;
+    }
+    .btn-primary { background: #e94560; color: white; border: none; font-weight: 500; }
+    .btn-primary:hover { background: #c23152; }
+    .status-badge {
+      font-size: 13px;
+      margin-left: 12px;
+      opacity: 0;
+    }
+    .status-badge.show { opacity: 1; }
   </style>
 </head>
 <body>
   <script>
-    if (!sessionStorage.getItem('qrlogin')) { window.location.href = 'login.html'; }
+    if (!sessionStorage.getItem('qrlogin')) window.location.href = 'login.html';
   </script>
 
-  <div class="header">
-    <h2>📊 Dashboard QRIS</h2>
-    <button class="logout-btn" onclick="logout()">Logout</button>
-  </div>
+  <nav>
+    <div class="brand">⚡ QRIS Admin</div>
+    <div class="links">
+      <a href="index.html" class="active">📊 Dashboard</a>
+      <a href="editor.html">✏️ Editor</a>
+    </div>
+    <button onclick="logout()">Logout</button>
+  </nav>
 
   <div class="container">
-    <div class="nav">
-      <a href="index.html">🏠 Dashboard</a>
-      <a href="editor.html">✏️ Editor Script</a>
+    <div class="setup-panel" id="setupPanel">
+      <h3 style="margin-bottom:16px;">⚙️ Konfigurasi Koneksi</h3>
+      <input type="password" id="tokenInput" placeholder="GitHub Token (ghp_...)">
+      <input type="text" id="gistIdInput" placeholder="Gist ID">
+      <input type="text" id="rawUrlInput" placeholder="Raw URL config.json" style="width:300px;">
+      <button class="btn-primary" onclick="saveSetup()">Simpan & Muat</button>
     </div>
 
-    <div class="config-bar" id="configBar" style="display: none;">
-      <strong>⚙️ Pengaturan</strong><br>
-      Token: <input type="password" id="tokenInput" placeholder="ghp_..."><br>
-      Gist ID: <input type="text" id="gistIdInput" placeholder="xxxxxxxxxxxxxxxx"><br>
-      Raw URL: <input type="text" id="rawUrlInput" placeholder="https://gist.../raw/config.json"><br>
-      <button onclick="saveConfig()">Simpan & Muat</button>
+    <div class="card">
+      <h2 style="margin-bottom:20px;">📋 Daftar Toko</h2>
+      <table>
+        <thead><tr><th>Toko</th><th>Script Aktif</th><th>Ubah</th><th>Aksi</th></tr></thead>
+        <tbody id="storeBody"></tbody>
+      </table>
     </div>
-
-    <table>
-      <thead><tr><th>Nama Toko</th><th>Script Aktif</th><th>Ubah</th><th></th></tr></thead>
-      <tbody id="storeBody"></tbody>
-    </table>
   </div>
+
+  <div class="toast" id="toast"></div>
 
   <script>
     let CONFIG = {};
-    if(localStorage.adminConfig) {
+    if (localStorage.adminConfig) {
       CONFIG = JSON.parse(localStorage.adminConfig);
-      if(CONFIG.token && CONFIG.gistId && CONFIG.rawUrl) {
-        document.getElementById('configBar').style.display = 'none';
+      if (CONFIG.token && CONFIG.gistId && CONFIG.rawUrl) {
+        document.getElementById('setupPanel').style.display = 'none';
         loadData();
       } else {
-        document.getElementById('configBar').style.display = 'block';
-        if(CONFIG.token) document.getElementById('tokenInput').value = CONFIG.token;
-        if(CONFIG.gistId) document.getElementById('gistIdInput').value = CONFIG.gistId;
-        if(CONFIG.rawUrl) document.getElementById('rawUrlInput').value = CONFIG.rawUrl;
+        document.getElementById('setupPanel').style.display = 'block';
+        if (CONFIG.token) document.getElementById('tokenInput').value = CONFIG.token;
+        if (CONFIG.gistId) document.getElementById('gistIdInput').value = CONFIG.gistId;
+        if (CONFIG.rawUrl) document.getElementById('rawUrlInput').value = CONFIG.rawUrl;
       }
     } else {
-      document.getElementById('configBar').style.display = 'block';
+      document.getElementById('setupPanel').style.display = 'block';
     }
 
-    async function saveConfig() {
+    async function saveSetup() {
       CONFIG.token = document.getElementById('tokenInput').value.trim();
       CONFIG.gistId = document.getElementById('gistIdInput').value.trim();
       CONFIG.rawUrl = document.getElementById('rawUrlInput').value.trim();
       localStorage.adminConfig = JSON.stringify(CONFIG);
-      document.getElementById('configBar').style.display = 'none';
+      document.getElementById('setupPanel').style.display = 'none';
       await loadData();
     }
 
     let data = {};
     async function loadData() {
       try {
-        const res = await fetch(CONFIG.rawUrl);
+        const res = await fetch(CONFIG.rawUrl + '?t=' + Date.now());
         data = await res.json();
         renderTable();
-      } catch(e) { alert('Gagal load data. Cek Raw URL.'); }
+      } catch(e) { showToast('❌ Gagal memuat data'); }
     }
 
     function renderTable() {
@@ -101,55 +176,46 @@
         const row = tbody.insertRow();
         row.innerHTML = `
           <td><strong>${store.name}</strong></td>
-          <td>${active ? active.name : '(tidak ada)'}</td>
+          <td>${active ? active.name : '—'}</td>
           <td>
-            <select data-key="${key}">
+            <select id="sel-${key}">
               ${store.script_options.map((opt,i) => `<option value="${i}" ${i===store.active_index?'selected':''}>${opt.name}</option>`).join('')}
             </select>
           </td>
           <td>
-            <button onclick="updateActive('${key}')">Simpan</button>
-            <span class="status" id="st-${key}"></span>
+            <button class="btn-primary" onclick="updateActive('${key}')">Simpan</button>
+            <span class="status-badge" id="st-${key}"></span>
           </td>
         `;
       });
     }
 
     async function updateActive(key) {
-      const sel = document.querySelector(`select[data-key="${key}"]`);
+      if (!confirm('Yakin ubah script aktif untuk ' + key + '?')) return;
+      const sel = document.getElementById('sel-'+key);
       const newIdx = parseInt(sel.value);
       const store = data.stores[key];
       const oldIdx = store.active_index;
-      const oldName = store.script_options[oldIdx].name;
-      const newName = store.script_options[newIdx].name;
-
-      const st = document.getElementById(`st-${key}`);
-      st.textContent = '⏳...';
-
-      // Optimistic update
       store.active_index = newIdx;
-
-      const logEntry = {
-        timestamp: new Date().toISOString(),
-        store: key,
-        action: `Ubah script aktif: ${oldName} -> ${newName}`,
-        user_agent: navigator.userAgent
-      };
-
+      const st = document.getElementById('st-'+key);
+      st.textContent = '⏳';
+      st.classList.add('show');
       try {
-        const gistUrl = `https://api.github.com/gists/${CONFIG.gistId}`;
-        const gistRes = await fetch(gistUrl, { headers: { 'Authorization': `token ${CONFIG.token}` } });
+        const gistRes = await fetch(`https://api.github.com/gists/${CONFIG.gistId}`, {
+          headers: { 'Authorization': `token ${CONFIG.token}` }
+        });
         const gistData = await gistRes.json();
         let logs = [];
         try { logs = JSON.parse(gistData.files['log.json'].content); } catch(e){}
-        logs.push(logEntry);
-
-        const updateRes = await fetch(gistUrl, {
+        logs.push({
+          timestamp: new Date().toISOString(),
+          store: key,
+          action: `Ubah script: ${store.script_options[oldIdx].name} → ${store.script_options[newIdx].name}`,
+          user_agent: navigator.userAgent
+        });
+        const updateRes = await fetch(`https://api.github.com/gists/${CONFIG.gistId}`, {
           method: 'PATCH',
-          headers: {
-            'Authorization': `token ${CONFIG.token}`,
-            'Content-Type': 'application/json'
-          },
+          headers: { 'Authorization': `token ${CONFIG.token}`, 'Content-Type': 'application/json' },
           body: JSON.stringify({
             files: {
               'config.json': { content: JSON.stringify(data, null, 2) },
@@ -157,18 +223,26 @@
             }
           })
         });
-
         if (updateRes.ok) {
           st.textContent = '✅';
+          showToast('✅ Berhasil diperbarui');
           renderTable();
         } else {
-          st.textContent = '❌ Gagal';
-          store.active_index = oldIdx; // rollback
+          st.textContent = '❌';
+          store.active_index = oldIdx;
         }
       } catch(e) {
-        st.textContent = '❌ Error';
+        st.textContent = '❌';
         store.active_index = oldIdx;
       }
+      setTimeout(() => { st.classList.remove('show'); st.textContent = ''; }, 2000);
+    }
+
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 2500);
     }
 
     function logout() {
