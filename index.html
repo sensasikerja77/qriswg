@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dashboard — QRIS Admin</title>
+  <title>Dashboard QRIS</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: 'Segoe UI', system-ui, sans-serif; background: #f8fafc; color: #0f172a; }
@@ -21,7 +21,6 @@
     th { color: #64748b; font-weight: 600; font-size: 13px; }
     select, .btn { padding: 8px 16px; border-radius: 8px; border: 1px solid #cbd5e1; background: white; cursor: pointer; }
     .btn-primary { background: #e94560; color: white; border: none; font-weight: 500; }
-    .btn-primary:hover { background: #c23152; }
     .toast { position: fixed; bottom: 24px; right: 24px; background: #0f172a; color: white; padding: 12px 24px; border-radius: 12px; z-index: 1000; opacity: 0; transition: opacity 0.3s; }
     .toast.show { opacity: 1; }
   </style>
@@ -44,7 +43,7 @@
       <input type="password" id="tokenInput" placeholder="Token GitHub (ghp_...)">
       <input type="text" id="gistIdInput" placeholder="Gist ID">
       <input type="text" id="rawUrlInput" placeholder="Raw URL config.json" style="width:300px;">
-      <button class="btn-primary" onclick="saveSetup()">Simpan &amp; Muat</button>
+      <button class="btn-primary" onclick="saveSetup()">Simpan & Muat</button>
     </div>
     <div class="card">
       <h2>📋 Daftar Toko</h2>
@@ -129,26 +128,31 @@
         st.textContent = '⏳';
 
         try {
-          // Ambil gist terbaru
+          // 1. Ambil data terbaru dari Gist
           const gistUrl = `https://api.github.com/gists/${CONFIG.gistId}`;
-          let gistRes = await fetch(gistUrl, {
+          const gistRes = await fetch(gistUrl, {
             headers: { 'Authorization': `token ${CONFIG.token}` }
           });
           if (!gistRes.ok) throw new Error('Gagal ambil gist');
           const gistData = await gistRes.json();
 
+          // 2. Parse config & log terbaru
           const latestConfig = JSON.parse(gistData.files['config.json'].content);
           let logs = [];
           try { logs = JSON.parse(gistData.files['log.json'].content); } catch(e) {}
 
-          // Ubah active_index
+          // 3. Cek apakah toko ada
           const store = latestConfig.stores[key];
           if (!store) throw new Error('Toko tidak ditemukan');
+          
+          // 4. Simpan nama lama untuk log
           const oldName = store.script_options[store.active_index].name;
           const newName = store.script_options[newIdx].name;
+
+          // 5. Ubah active_index
           store.active_index = newIdx;
 
-          // Tambah log
+          // 6. Tambahkan log
           logs.push({
             timestamp: new Date().toISOString(),
             store: key,
@@ -156,7 +160,7 @@
             user_agent: navigator.userAgent
           });
 
-          // Simpan ke Gist
+          // 7. Simpan kembali ke Gist (config + log)
           const updateRes = await fetch(gistUrl, {
             method: 'PATCH',
             headers: {
@@ -172,13 +176,14 @@
           });
 
           if (!updateRes.ok) {
-            const err = await updateRes.text();
-            throw new Error('Gagal menyimpan: ' + err);
+            const errText = await updateRes.text();
+            throw new Error('Gagal menyimpan: ' + errText);
           }
 
+          // 8. Berhasil, muat ulang data dari Gist
           st.textContent = '✅';
           showToast('✅ Berhasil disimpan ke Gist');
-          await loadFromGist(); // Refresh data dari Gist
+          await loadFromGist();
         } catch(e) {
           st.textContent = '❌';
           showToast('❌ ' + e.message);
