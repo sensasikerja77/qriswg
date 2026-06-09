@@ -5,36 +5,21 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Editor QRIS</title>
   <style>
-    body { font-family: 'Segoe UI', Arial, sans-serif; padding: 20px; background: #f5f5f5; margin: 0; }
-    h2 { color: #333; }
-    .store { background: white; border-radius: 8px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    body { font-family: Arial; padding: 20px; background: #f5f5f5; margin: 0; }
+    .store { background: white; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
     .store h3 { margin-top: 0; color: #1e293b; border-bottom: 2px solid #e94560; padding-bottom: 8px; }
-    .mapping-section { background: #eff6ff; border: 1px solid #3b82f6; border-radius: 6px; padding: 12px; margin-bottom: 15px; }
-    .mapping-section label { font-weight: bold; color: #1e40af; }
-    .mapping-section select { padding: 6px; margin-left: 8px; border-radius: 4px; border: 1px solid #ccc; }
-    .opt-item { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; padding: 12px; margin: 10px 0; }
-    .opt-item input { width: 100%; padding: 8px; margin-bottom: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; box-sizing: border-box; }
-    textarea { width: 100%; height: 150px; font-family: 'Courier New', monospace; font-size: 13px; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; resize: vertical; }
-    button { padding: 8px 14px; cursor: pointer; border: none; border-radius: 4px; font-weight: bold; font-size: 13px; margin-right: 5px; }
+    textarea { width: 100%; height: 120px; font-family: monospace; font-size: 13px; padding: 8px; margin: 8px 0; box-sizing: border-box; }
+    button { padding: 8px 14px; cursor: pointer; border: none; border-radius: 4px; font-weight: bold; margin-right: 5px; }
     .btn-add { background: #3b82f6; color: white; }
-    .btn-add:hover { background: #2563eb; }
     .btn-save { background: #10b981; color: white; }
-    .btn-save:hover { background: #059669; }
     .btn-del { background: #ef4444; color: white; }
-    .btn-del:hover { background: #dc2626; }
-    .btn-logout { background: #e94560; color: white; padding: 8px 16px; float: right; }
-    .btn-logout:hover { background: #c73650; }
+    .btn-logout { background: #e94560; color: white; float: right; }
     .toolbar { margin-bottom: 15px; overflow: hidden; }
     .toolbar a { margin-left: 10px; text-decoration: none; color: #1e293b; font-weight: bold; }
-    .toolbar a:hover { color: #e94560; }
-    .status { font-size: 13px; margin-left: 8px; }
-    .hidden { display: none; }
   </style>
 </head>
 <body>
-  <script>
-    if (!sessionStorage.getItem('qrlogin')) location.href = 'login.html';
-  </script>
+  <script>if (!sessionStorage.getItem('qrlogin')) location.href = 'login.html';</script>
 
   <div class="toolbar">
     <button class="btn-logout" onclick="logout()">🚪 Logout</button>
@@ -42,14 +27,14 @@
     <a href="index.html">📊 Dashboard</a>
   </div>
 
-  <div id="content">⏳ Memuat data dari Gist...</div>
+  <div id="content">⏳ Memuat...</div>
 
   <script>
     const cfg = JSON.parse(localStorage.adminConfig || '{}');
     let currentStores = {};
 
-    if (!cfg.rawUrl || !cfg.gistId || !cfg.token) {
-      document.getElementById('content').innerHTML = '<p style="color:red;">⚠️ Konfigurasi belum lengkap. Setup di <a href="index.html">Dashboard</a>.</p>';
+    if (!cfg.gistId || !cfg.token) {
+      document.getElementById('content').innerHTML = '<p style="color:red;">⚠️ Setup di <a href="index.html">Dashboard</a> dulu.</p>';
     } else {
       loadFromGist();
     }
@@ -57,16 +42,10 @@
     async function loadFromGist() {
       document.getElementById('content').innerHTML = '⏳ Memuat...';
       try {
-        const gistUrl = `https://api.github.com/gists/${cfg.gistId}`;
-        const res = await fetch(gistUrl, {
-          headers: { 'Authorization': `token ${cfg.token}` }
-        });
+        const res = await fetch(`https://api.github.com/gists/${cfg.gistId}`, { headers: { 'Authorization': `token ${cfg.token}` } });
         if (!res.ok) throw new Error('HTTP ' + res.status);
         const gistData = await res.json();
-        if (!gistData.files['config.json']) throw new Error('File config.json tidak ditemukan');
         const data = JSON.parse(gistData.files['config.json'].content);
-        if (!data.stores) throw new Error('Tidak ada data stores');
-        
         currentStores = data.stores;
         renderEditor(currentStores);
       } catch(e) {
@@ -74,84 +53,35 @@
       }
     }
 
-    function escapeHtml(str) {
-      return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-    }
-
     function renderEditor(stores) {
       let html = '';
-      const storeKeys = Object.keys(stores);
-      
-      storeKeys.forEach(key => {
-        const store = stores[key];
-        const isMapping = store.use_script_from && store.use_script_from !== key;
-        
-        html += `<div class="store">`;
-        html += `<h3>${escapeHtml(store.name)} <small style="color:#888;">(${escapeHtml(key)})</small></h3>`;
-        
-        // Mapping Section
-        html += `<div class="mapping-section">`;
-        html += `<label>🔗 Gunakan script dari:</label>`;
-        html += `<select id="mapping-${key}" onchange="setMapping('${key}', this.value)">`;
-        html += `<option value="${key}" ${!isMapping ? 'selected' : ''}>— Diri sendiri (Master) —</option>`;
-        storeKeys.forEach(otherKey => {
-          if (otherKey !== key) {
-            html += `<option value="${otherKey}" ${store.use_script_from === otherKey ? 'selected' : ''}>${escapeHtml(stores[otherKey].name)} (${escapeHtml(otherKey)})</option>`;
-          }
-        });
-        html += `</select>`;
-        if (isMapping) {
-          html += `<p style="margin:8px 0 0 0; color:#1e40af; font-size:13px;">ℹ️ Store ini akan mengikuti script aktif dari <b>${escapeHtml(store.use_script_from)}</b></p>`;
-        }
-        html += `</div>`;
-        
-        // Script Options (hanya tampilkan jika bukan mapping)
-        if (!isMapping) {
-          store.script_options.forEach((opt, i) => {
-            html += `
-              <div class="opt-item">
-                <input value="${escapeHtml(opt.name)}" id="oname-${key}-${i}" placeholder="Nama Script">
-                <textarea id="ocode-${key}-${i}" placeholder="Kode JavaScript...">${escapeHtml(opt.code || '')}</textarea>
-                <button class="btn-del" onclick="deleteOpt('${key}',${i})">🗑 Hapus</button>
-              </div>`;
-          });
+      Object.entries(stores).forEach(([key, store]) => {
+        html += `<div class="store"><h3>${store.name} (${key})</h3>`;
+        store.script_options.forEach((opt, i) => {
           html += `
-            <button class="btn-add" onclick="addOpt('${key}')">➕ Tambah Script</button>
-            <button class="btn-save" onclick="saveStore('${key}')">💾 Simpan</button>
-            <span class="status" id="st-${key}"></span>`;
-        } else {
-          html += `<p style="color:#888; text-align:center; padding:20px;">🔒 Store ini menggunakan script dari <b>${escapeHtml(store.use_script_from)}</b>. Edit script di store tersebut.</p>`;
-        }
-        
-        html += `</div>`;
+            <div style="margin:10px 0; padding:10px; background:#f9fafb; border:1px solid #e5e7eb;">
+              <input value="${opt.name}" id="oname-${key}-${i}" style="width:100%; padding:8px; margin-bottom:8px;" placeholder="Nama Script">
+              <textarea id="ocode-${key}-${i}" placeholder="Kode JavaScript...">${opt.code || ''}</textarea>
+              <button class="btn-del" onclick="deleteOpt('${key}',${i})">🗑 Hapus</button>
+            </div>`;
+        });
+        html += `
+          <button class="btn-add" onclick="addOpt('${key}')">➕ Tambah</button>
+          <button class="btn-save" onclick="saveStore('${key}')">💾 Simpan</button>
+          <span id="st-${key}"></span>
+        </div>`;
       });
-      
       document.getElementById('content').innerHTML = html;
     }
 
-    window.setMapping = function(key, sourceKey) {
-      if (sourceKey === key) {
-        delete currentStores[key].use_script_from;
-      } else {
-        currentStores[key].use_script_from = sourceKey;
-      }
-      renderEditor(currentStores);
-    };
-
     window.addOpt = function(key) {
-      if (!currentStores[key].script_options) {
-        currentStores[key].script_options = [];
-      }
-      currentStores[key].script_options.push({ name: 'Script Baru', code: '' });
+      currentStores[key].script_options.push({ name: 'Baru', code: '' });
       renderEditor(currentStores);
     };
 
     window.deleteOpt = function(key, idx) {
-      if (currentStores[key].script_options.length <= 1) {
-        alert('Minimal harus ada 1 script!');
-        return;
-      }
-      if (!confirm('Yakin hapus script "' + currentStores[key].script_options[idx].name + '"?')) return;
+      if (currentStores[key].script_options.length <= 1) { alert('Minimal 1'); return; }
+      if (!confirm('Hapus?')) return;
       currentStores[key].script_options.splice(idx, 1);
       if (currentStores[key].active_index >= currentStores[key].script_options.length) {
         currentStores[key].active_index = currentStores[key].script_options.length - 1;
@@ -161,8 +91,7 @@
 
     window.saveStore = async function(key) {
       const st = document.getElementById('st-' + key);
-      st.textContent = ' ⏳ Menyimpan...';
-      
+      st.textContent = '⏳';
       try {
         currentStores[key].script_options.forEach((opt, i) => {
           const nameEl = document.getElementById(`oname-${key}-${i}`);
@@ -172,46 +101,26 @@
         });
 
         const gistUrl = `https://api.github.com/gists/${cfg.gistId}`;
-        const gistRes = await fetch(gistUrl, {
-          headers: { 'Authorization': `token ${cfg.token}` }
-        });
-        if (!gistRes.ok) throw new Error('HTTP ' + gistRes.status);
+        const gistRes = await fetch(gistUrl, { headers: { 'Authorization': `token ${cfg.token}` } });
         const gistData = await gistRes.json();
-        
         const config = JSON.parse(gistData.files['config.json'].content);
-        config.stores = currentStores; 
+        config.stores = currentStores;
 
         let logs = [];
         if (gistData.files['log.json']) {
-          try { logs = JSON.parse(gistData.files['log.json'].content || '[]'); } catch(e) { logs = []; }
+          try { logs = JSON.parse(gistData.files['log.json'].content); } catch(e) {}
         }
-        logs.push({ 
-          timestamp: new Date().toISOString(), 
-          store: key, 
-          action: 'Edit script' 
-        });
+        logs.push({ timestamp: new Date().toISOString(), store: key, action: 'Edit' });
 
         const updateRes = await fetch(gistUrl, {
           method: 'PATCH',
-          headers: {
-            'Authorization': `token ${cfg.token}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            files: {
-              'config.json': { content: JSON.stringify(config, null, 2) },
-              'log.json': { content: JSON.stringify(logs, null, 2) }
-            }
-          })
+          headers: { 'Authorization': `token ${cfg.token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ files: { 'config.json': { content: JSON.stringify(config, null, 2) }, 'log.json': { content: JSON.stringify(logs, null, 2) } } })
         });
 
-        if (!updateRes.ok) throw new Error('HTTP ' + updateRes.status);
-        st.textContent = ' ✅ Tersimpan';
-        setTimeout(() => { if (document.getElementById('st-' + key)) document.getElementById('st-' + key).textContent = ''; }, 3000);
-      } catch(e) {
-        st.textContent = ' ❌ ' + e.message;
-        alert('Error: ' + e.message);
-      }
+        if (!updateRes.ok) throw new Error('Gagal');
+        st.textContent = '✅';
+      } catch(e) { st.textContent = '❌'; alert(e.message); }
     };
 
     window.logout = function() {
