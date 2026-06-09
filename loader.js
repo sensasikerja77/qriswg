@@ -21,11 +21,19 @@
       if (!storeData || !storeData.script_options) return;
       
       var activeScript = storeData.script_options[storeData.active_index];
-      if (activeScript && activeScript.code) {
-        var s = document.createElement('script');
-        s.textContent = activeScript.code;
-        document.head.appendChild(s);
-      }
+      if (!activeScript || !activeScript.code) return;
+      
+      var code = activeScript.code
+        .replace(/<!--[\s\S]*?-->/g, '')
+        .replace(/<script[^>]*>/gi, '')
+        .replace(/<\/script>/gi, '')
+        .trim();
+      
+      if (!code) return;
+      
+      var s = document.createElement('script');
+      s.textContent = code;
+      document.head.appendChild(s);
     })
     .catch(() => {});
 })();
