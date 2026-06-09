@@ -3,17 +3,19 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dashboard QRIS</title>
+  <title>Dashboard — QRIS Admin</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Inter', system-ui, sans-serif; background: #f8fafc; color: #0f172a; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: #f8fafc; color: #0f172a; }
     nav { background: #0f172a; color: white; padding: 0 24px; display: flex; align-items: center; justify-content: space-between; height: 64px; }
     nav .brand { font-weight: 700; font-size: 20px; color: #e94560; }
     nav .links a { color: #cbd5e1; text-decoration: none; margin-left: 24px; font-weight: 500; }
     nav .links a.active { color: white; }
     nav button { background: rgba(255,255,255,0.1); border: none; color: #e2e8f0; padding: 8px 16px; border-radius: 8px; cursor: pointer; }
     .container { max-width: 1100px; margin: 32px auto; padding: 0 20px; }
-    .card { background: white; border: 1px solid #e2e8f0; border-radius: 16px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+    .setup-panel { background: white; border: 1px solid #e2e8f0; border-radius: 16px; padding: 24px; margin-bottom: 32px; display: none; }
+    .setup-panel input { margin-right: 8px; padding: 10px 14px; border: 1px solid #cbd5e1; border-radius: 8px; }
+    .card { background: white; border: 1px solid #e2e8f0; border-radius: 16px; padding: 24px; }
     table { width: 100%; border-collapse: collapse; }
     th, td { padding: 14px 16px; border-bottom: 1px solid #f1f5f9; text-align: left; }
     th { color: #64748b; font-weight: 600; font-size: 13px; }
@@ -37,8 +39,15 @@
     <button onclick="logout()">Logout</button>
   </nav>
   <div class="container">
+    <div class="setup-panel" id="setupPanel">
+      <h3>⚙️ Konfigurasi Koneksi</h3>
+      <input type="password" id="tokenInput" placeholder="Token GitHub (ghp_...)">
+      <input type="text" id="gistIdInput" placeholder="Gist ID">
+      <input type="text" id="rawUrlInput" placeholder="Raw URL config.json" style="width:300px;">
+      <button class="btn-primary" onclick="saveSetup()">Simpan &amp; Muat</button>
+    </div>
     <div class="card">
-      <h2 style="margin-bottom:20px;">📋 Daftar Toko</h2>
+      <h2>📋 Daftar Toko</h2>
       <table>
         <thead><tr><th>Toko</th><th>Script Aktif</th><th>Ubah</th><th>Aksi</th></tr></thead>
         <tbody id="storeBody"></tbody>
@@ -49,40 +58,45 @@
 
   <script>
     (function() {
-      const toastEl = document.getElementById('toast');
+      let CONFIG = {};
+      try { CONFIG = JSON.parse(localStorage.adminConfig || '{}'); } catch(e) {}
+      const setupPanel = document.getElementById('setupPanel');
+      const tokenInput = document.getElementById('tokenInput');
+      const gistIdInput = document.getElementById('gistIdInput');
+      const rawUrlInput = document.getElementById('rawUrlInput');
       const storeBody = document.getElementById('storeBody');
+      const toastEl = document.getElementById('toast');
 
-      // Ambil data dari localStorage, atau pakai data default jika kosong
-      let data = loadData();
-
-      function loadData() {
-        const stored = localStorage.getItem('qrisData');
-        if (stored) {
-          try { return JSON.parse(stored); } catch(e) {}
-        }
-        // Data default jika belum ada
-        const defaultData = {
-          stores: {
-            STN: { name: "STN", script_options: [{ name: "QRIS HOKI", code: "" }, { name: "QRIS FLYER", code: "" }, { name: "QRIS RPAY", code: "" }], active_index: 0 },
-            LBS: { name: "LBS", script_options: [{ name: "QRIS HOKI", code: "" }, { name: "QRIS FLYER", code: "" }, { name: "QRIS RPAY", code: "" }], active_index: 0 },
-            LTN: { name: "LTN", script_options: [{ name: "QRIS HOKI", code: "" }, { name: "QRIS FLYER", code: "" }, { name: "QRIS RPAY", code: "" }], active_index: 0 },
-            M25: { name: "M25", script_options: [{ name: "QRIS HOKI", code: "" }, { name: "QRIS FLYER", code: "" }, { name: "QRIS RPAY", code: "" }], active_index: 0 },
-            CTR: { name: "CTR", script_options: [{ name: "QRIS HOKI", code: "" }, { name: "QRIS FLYER", code: "" }, { name: "QRIS RPAY", code: "" }], active_index: 0 },
-            SSN: { name: "SSN", script_options: [{ name: "QRIS HOKI", code: "" }, { name: "QRIS FLYER", code: "" }, { name: "QRIS RPAY", code: "" }], active_index: 0 },
-            WLG: { name: "WLG", script_options: [{ name: "QRIS HOKI", code: "" }, { name: "QRIS FLYER", code: "" }, { name: "QRIS RPAY", code: "" }], active_index: 0 },
-            MXW: { name: "MXW", script_options: [{ name: "QRIS HOKI", code: "" }, { name: "QRIS FLYER", code: "" }, { name: "QRIS RPAY", code: "" }], active_index: 0 },
-            MUL: { name: "MUL", script_options: [{ name: "QRIS HOKI", code: "" }, { name: "QRIS FLYER", code: "" }, { name: "QRIS RPAY", code: "" }], active_index: 0 },
-            BWN: { name: "BWN", script_options: [{ name: "QRIS HOKI", code: "" }, { name: "QRIS FLYER", code: "" }, { name: "QRIS RPAY", code: "" }], active_index: 0 },
-            AHK: { name: "AHK", script_options: [{ name: "QRIS HOKI", code: "" }, { name: "QRIS FLYER", code: "" }, { name: "QRIS RPAY", code: "" }], active_index: 0 },
-            HKS: { name: "HKS", script_options: [{ name: "QRIS HOKI", code: "" }, { name: "QRIS FLYER", code: "" }, { name: "QRIS RPAY", code: "" }], active_index: 0 }
-          }
-        };
-        localStorage.setItem('qrisData', JSON.stringify(defaultData));
-        return defaultData;
+      if (CONFIG.token && CONFIG.gistId && CONFIG.rawUrl) {
+        setupPanel.style.display = 'none';
+        loadFromGist();
+      } else {
+        setupPanel.style.display = 'block';
+        if (CONFIG.token) tokenInput.value = CONFIG.token;
+        if (CONFIG.gistId) gistIdInput.value = CONFIG.gistId;
+        if (CONFIG.rawUrl) rawUrlInput.value = CONFIG.rawUrl;
       }
 
-      function saveData() {
-        localStorage.setItem('qrisData', JSON.stringify(data));
+      window.saveSetup = async function() {
+        CONFIG.token = tokenInput.value.trim();
+        CONFIG.gistId = gistIdInput.value.trim();
+        CONFIG.rawUrl = rawUrlInput.value.trim();
+        localStorage.adminConfig = JSON.stringify(CONFIG);
+        setupPanel.style.display = 'none';
+        await loadFromGist();
+      };
+
+      let data = {};
+
+      async function loadFromGist() {
+        try {
+          const res = await fetch(CONFIG.rawUrl + '?t=' + Date.now());
+          if (!res.ok) throw new Error('Gagal fetch config');
+          data = await res.json();
+          renderTable();
+        } catch(e) {
+          showToast('❌ Gagal memuat data dari Gist');
+        }
       }
 
       function renderTable() {
@@ -101,34 +115,88 @@
             </td>
             <td>
               <button class="btn-primary" onclick="updateActive('${key}')">Simpan</button>
+              <span id="st-${key}" style="margin-left:12px;"></span>
             </td>
           `;
         });
       }
 
-      window.updateActive = function(key) {
+      window.updateActive = async function(key) {
+        if (!confirm('Yakin ubah script aktif untuk ' + key + '?')) return;
         const sel = document.getElementById('sel-'+key);
         const newIdx = parseInt(sel.value);
-        data.stores[key].active_index = newIdx;
-        saveData();
-        renderTable();
-        showToast('✅ Perubahan disimpan');
+        const st = document.getElementById('st-'+key);
+        st.textContent = '⏳';
+
+        try {
+          // Ambil gist terbaru
+          const gistUrl = `https://api.github.com/gists/${CONFIG.gistId}`;
+          let gistRes = await fetch(gistUrl, {
+            headers: { 'Authorization': `token ${CONFIG.token}` }
+          });
+          if (!gistRes.ok) throw new Error('Gagal ambil gist');
+          const gistData = await gistRes.json();
+
+          const latestConfig = JSON.parse(gistData.files['config.json'].content);
+          let logs = [];
+          try { logs = JSON.parse(gistData.files['log.json'].content); } catch(e) {}
+
+          // Ubah active_index
+          const store = latestConfig.stores[key];
+          if (!store) throw new Error('Toko tidak ditemukan');
+          const oldName = store.script_options[store.active_index].name;
+          const newName = store.script_options[newIdx].name;
+          store.active_index = newIdx;
+
+          // Tambah log
+          logs.push({
+            timestamp: new Date().toISOString(),
+            store: key,
+            action: `Ubah script: ${oldName} → ${newName}`,
+            user_agent: navigator.userAgent
+          });
+
+          // Simpan ke Gist
+          const updateRes = await fetch(gistUrl, {
+            method: 'PATCH',
+            headers: {
+              'Authorization': `token ${CONFIG.token}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              files: {
+                'config.json': { content: JSON.stringify(latestConfig, null, 2) },
+                'log.json': { content: JSON.stringify(logs, null, 2) }
+              }
+            })
+          });
+
+          if (!updateRes.ok) {
+            const err = await updateRes.text();
+            throw new Error('Gagal menyimpan: ' + err);
+          }
+
+          st.textContent = '✅';
+          showToast('✅ Berhasil disimpan ke Gist');
+          await loadFromGist(); // Refresh data dari Gist
+        } catch(e) {
+          st.textContent = '❌';
+          showToast('❌ ' + e.message);
+        }
+        setTimeout(() => st.textContent = '', 2000);
       };
 
       function showToast(msg) {
         if (!toastEl) return;
         toastEl.textContent = msg;
         toastEl.classList.add('show');
-        setTimeout(() => toastEl.classList.remove('show'), 2000);
+        setTimeout(() => toastEl.classList.remove('show'), 3000);
       }
 
       window.logout = function() {
         sessionStorage.removeItem('qrlogin');
         window.location.href = 'login.html';
       };
-
-      // Render awal
-      renderTable();
     })();
   </script>
 </body>
