@@ -141,18 +141,16 @@
           let logs = [];
           try { logs = JSON.parse(gistData.files['log.json'].content); } catch(e) {}
 
-          // 3. Cek apakah toko ada
+          // 3. Cek toko
           const store = latestConfig.stores[key];
           if (!store) throw new Error('Toko tidak ditemukan');
           
-          // 4. Simpan nama lama untuk log
+          // 4. Ubah active_index
           const oldName = store.script_options[store.active_index].name;
           const newName = store.script_options[newIdx].name;
-
-          // 5. Ubah active_index
           store.active_index = newIdx;
 
-          // 6. Tambahkan log
+          // 5. Tambah log
           logs.push({
             timestamp: new Date().toISOString(),
             store: key,
@@ -160,7 +158,7 @@
             user_agent: navigator.userAgent
           });
 
-          // 7. Simpan kembali ke Gist (config + log)
+          // 6. Simpan kembali ke Gist
           const updateRes = await fetch(gistUrl, {
             method: 'PATCH',
             headers: {
@@ -180,10 +178,9 @@
             throw new Error('Gagal menyimpan: ' + errText);
           }
 
-          // 8. Berhasil, muat ulang data dari Gist
           st.textContent = '✅';
           showToast('✅ Berhasil disimpan ke Gist');
-          await loadFromGist();
+          await loadFromGist(); // Refresh UI dari Gist
         } catch(e) {
           st.textContent = '❌';
           showToast('❌ ' + e.message);
