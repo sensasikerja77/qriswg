@@ -107,7 +107,6 @@
         if (!confirm('Simpan perubahan script untuk ' + key + '?')) return;
         const store = data.stores[key];
         
-        // Update data lokal dari input
         document.querySelectorAll(`.opt-name-input[data-key="${key}"]`).forEach((inp,i) => {
           if (store.script_options[i]) store.script_options[i].name = inp.value;
         });
@@ -119,7 +118,6 @@
         st.textContent = '⏳';
 
         try {
-          // Ambil gist terbaru
           const gistUrl = `https://api.github.com/gists/${CONFIG.gistId}`;
           const gistRes = await fetch(gistUrl, {
             headers: { 'Authorization': `token ${CONFIG.token}` }
@@ -131,7 +129,6 @@
           let logs = [];
           try { logs = JSON.parse(gistData.files['log.json'].content); } catch(e) {}
 
-          // Ganti data toko yang bersangkutan dengan data dari editor
           latestConfig.stores[key] = JSON.parse(JSON.stringify(store));
 
           logs.push({
@@ -162,7 +159,7 @@
 
           st.textContent = '✅';
           showToast('✅ Tersimpan ke Gist');
-          await loadFromGist(); // Refresh data dari Gist
+          await loadFromGist();
         } catch(e) {
           st.textContent = '❌';
           showToast('❌ ' + e.message);
