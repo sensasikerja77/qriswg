@@ -2,113 +2,86 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Dashboard QRIS</title>
   <style>
-    body { font-family: Arial, sans-serif; padding: 20px; }
+    body { font-family: Arial; padding: 20px; }
     table { border-collapse: collapse; width: 100%; }
-    th, td { border: 1px solid #ccc; padding: 10px; }
-    button { padding: 6px 12px; cursor: pointer; }
+    th, td { border: 1px solid #ccc; padding: 8px; }
+    button { padding: 5px 10px; }
   </style>
 </head>
 <body>
+  <h2>Dashboard QRIS</h2>
+  <div id="app">⏳ Memuat dari Gist...</div>
+
   <script>
     if (!sessionStorage.getItem('qrlogin')) location.href = 'login.html';
-  </script>
-  
-  <h2>Dashboard QRIS</h2>
-  <div id="content">⏳ Memuat data dari Gist...</div>
 
-  <script>
-    const cfg = JSON.parse(localStorage.adminConfig || '{}');
-    
+    var cfg = JSON.parse(localStorage.adminConfig || '{}');
     if (!cfg.rawUrl) {
-      document.getElementById('content').innerHTML = '<p>⚠️ Raw URL belum diatur</p>';
+      document.getElementById('app').innerHTML = '⚠️ Setup belum lengkap';
     } else {
-      loadFromGist();
+      load();
     }
 
-    async function loadFromGist() {
-      document.getElementById('content').innerHTML = '⏳ Memuat data dari Gist...';
-      
-      try {
-        const res = await fetch(cfg.rawUrl + '?t=' + Date.now());
-        if (!res.ok) throw new Error('HTTP ' + res.status);
-        const data = await res.json();
-        
-        if (!data.stores) throw new Error('Tidak ada stores');
-        
-        // ✅ Render langsung dari data Gist
-        renderDashboard(data.stores);
-        
-      } catch(e) {
-        document.getElementById('content').innerHTML = `
-          <div style="color:red; padding:20px; background:#fee;">
-            ❌ Gagal memuat: ${e.message}<br>
-            <button onclick="loadFromGist()">Coba Lagi</button>
-          </div>`;
-      }
+    var stores = {};
+
+    function load() {
+      document.getElementById('app').innerHTML = '⏳ Memuat...';
+      fetch(cfg.rawUrl + '?t=' + Date.now())
+        .then(r => r.json())
+        .then(data => {
+          stores = data.stores;
+          render();
+        })
+        .catch(e => {
+          document.getElementById('app').innerHTML = '❌ ' + e.message + ' <button onclick="load()">Coba Lagi</button>';
+        });
     }
 
-    function renderDashboard(stores) {
-      let html = '<table><thead><tr><th>Toko</th><th>Script Aktif</th><th>Ubah</th><th>Aksi</th></tr></thead><tbody>';
-      
-      Object.entries(stores).forEach(([key, store]) => {
-        const active = store.script_options[store.active_index];
-        html += `
-          <tr>
-            <td><b>${store.name}</b></td>
-            <td id="active-${key}">${active ? active.name : '—'}</td>
-            <td>
-              <select id="sel-${key}">
-                ${store.script_options.map((o,i) => `<option value="${i}" ${i===store.active_index?'selected':''}>${o.name}</option>`).join('')}
-              </select>
-            </td>
-            <td>
-              <button onclick="updateStore('${key}')">Simpan</button>
-              <span id="st-${key}"></span>
-            </td>
-          </tr>`;
+    function render() {
+      var html = '<table><tr><th>Toko</th><th>Aktif</th><th>Ubah</th><th>Aksi</th></tr>';
+      Object.keys(stores).forEach(function(key) {
+        var s = stores[key];
+        var a = s.script_options[s.active_index];
+        html += '<tr><td><b>' + s.name + '</b></td><td>' + (a?a.name:'—') + '</td>';
+        html += '<td><select id="sel_' + key + '">';
+        s.script_options.forEach((o,i) => html += '<option value="' + i + '" ' + (i===s.active_index?'selected':'') + '>' + o.name + '</option>');
+        html += '</select></td><td><button onclick="simpan(\'' + key + '\')">Simpan</button> <span id="st_' + key + '"></span></td></tr>';
       });
-      
-      html += '</tbody></table>';
-      document.getElementById('content').innerHTML = html;
+      html += '</table>';
+      document.getElementById('app').innerHTML = html;
     }
 
-    window.updateStore = async function(key) {
-      const sel = document.getElementById('sel-'+key);
-      const newIdx = parseInt(sel.value);
-      const st = document.getElementById('st-'+key);
+    window.simpan = async function(key) {
+      var newIdx = document.getElementById('sel_' + key).value;
+      var st = document.getElementById('st_' + key);
       st.textContent = '⏳';
 
       try {
-        // Ambil gist terbaru
-        const gistUrl = `https://api.github.com/gists/${cfg.gistId}`;
-        const gistRes = await fetch(gistUrl, {
-          headers: { 'Authorization': `token ${cfg.token}` }
-        });
-        if (!gistRes.ok) throw new Error('Gagal ambil gist');
-        const gistData = await gistRes.json();
-
-        const config = JSON.parse(gistData.files['config.json'].content);
-        let logs = [];
-        try { logs = JSON.parse(gistData.files['log.json'].content); } catch(e) {}
-
-        // Ubah active_index
-        config.stores[key].active_index = newIdx;
+        var gistUrl = 'https://api.github.com/gists/' + cfg.gistId;
         
-        // Tambah log
+        // Get latest
+        var gistRes = await fetch(gistUrl, {
+          headers: { 'Authorization': 'token ' + cfg.token }
+        });
+        var gistData = await gistRes.json();
+        var config = JSON.parse(gistData.files['config.json'].content);
+        var logs = JSON.parse(gistData.files['log.json'].content || '[]');
+        
+        // Update
+        config.stores[key].active_index = parseInt(newIdx);
         logs.push({
           timestamp: new Date().toISOString(),
           store: key,
-          action: `Ubah ke ${config.stores[key].script_options[newIdx].name}`
+          action: 'Ubah ke ' + config.stores[key].script_options[newIdx].name
         });
-
-        // Simpan ke Gist
-        const updateRes = await fetch(gistUrl, {
+        
+        // Save
+        var updateRes = await fetch(gistUrl, {
           method: 'PATCH',
           headers: {
-            'Authorization': `token ${cfg.token}`,
+            'Authorization': 'token ' + cfg.token,
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
@@ -118,13 +91,13 @@
             }
           })
         });
-
-        if (!updateRes.ok) throw new Error('Gagal simpan');
-
-        // ✅ Render ulang dari config yang baru
-        renderDashboard(config.stores);
-        st.textContent = '✅';
         
+        if (!updateRes.ok) throw new Error('Gagal simpan');
+        
+        // Update stores & render ulang
+        stores = config.stores;
+        render();
+        st.textContent = '✅';
       } catch(e) {
         st.textContent = '❌';
         alert(e.message);
