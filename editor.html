@@ -105,19 +105,16 @@
 
       window.saveStore = async function(key) {
         if (!confirm('Simpan perubahan script untuk ' + key + '?')) return;
-        const store = data.stores[key];
         
-        document.querySelectorAll(`.opt-name-input[data-key="${key}"]`).forEach((inp,i) => {
-          if (store.script_options[i]) store.script_options[i].name = inp.value;
-        });
-        document.querySelectorAll(`textarea[data-key="${key}"]`).forEach((ta,i) => {
-          if (store.script_options[i]) store.script_options[i].code = ta.value;
-        });
-
         const st = document.getElementById('status-'+key);
         st.textContent = '⏳';
 
+        // Ambil data dari input
+        const inputNames = document.querySelectorAll(`.opt-name-input[data-key="${key}"]`);
+        const inputCodes = document.querySelectorAll(`textarea[data-key="${key}"]`);
+
         try {
+          // 1. Ambil data TERBARU dari Gist
           const gistUrl = `https://api.github.com/gists/${CONFIG.gistId}`;
           const gistRes = await fetch(gistUrl, {
             headers: { 'Authorization': `token ${CONFIG.token}` }
@@ -125,12 +122,23 @@
           if (!gistRes.ok) throw new Error('Gagal ambil gist');
           const gistData = await gistRes.json();
 
+          // 2. Parse config & log terbaru
           const latestConfig = JSON.parse(gistData.files['config.json'].content);
           let logs = [];
           try { logs = JSON.parse(gistData.files['log.json'].content); } catch(e) {}
 
-          latestConfig.stores[key] = JSON.parse(JSON.stringify(store));
+          // 3. Update toko dengan data dari editor
+          const store = latestConfig.stores[key];
+          if (!store) throw new Error('Toko tidak ditemukan');
+          
+          inputNames.forEach((inp, i) => {
+            if (store.script_options[i]) store.script_options[i].name = inp.value;
+          });
+          inputCodes.forEach((ta, i) => {
+            if (store.script_options[i]) store.script_options[i].code = ta.value;
+          });
 
+          // 4. Tambah log
           logs.push({
             timestamp: new Date().toISOString(),
             store: key,
@@ -138,6 +146,7 @@
             user_agent: navigator.userAgent
           });
 
+          // 5. SIMPAN ke Gist
           const updateRes = await fetch(gistUrl, {
             method: 'PATCH',
             headers: {
@@ -157,9 +166,11 @@
             throw new Error('Gagal menyimpan: ' + errText);
           }
 
+          // 6. Berhasil
+          data = latestConfig;
           st.textContent = '✅';
           showToast('✅ Tersimpan ke Gist');
-          await loadFromGist();
+          renderEditor();
         } catch(e) {
           st.textContent = '❌';
           showToast('❌ ' + e.message);
