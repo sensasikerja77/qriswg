@@ -5,253 +5,153 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Dashboard QRIS</title>
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Segoe UI', system-ui, sans-serif; background: #f8fafc; color: #0f172a; }
-    nav { background: #0f172a; color: white; padding: 0 24px; display: flex; align-items: center; justify-content: space-between; height: 64px; }
-    nav .brand { font-weight: 700; font-size: 20px; color: #e94560; }
-    nav .links a { color: #cbd5e1; text-decoration: none; margin-left: 24px; font-weight: 500; }
-    nav .links a.active { color: white; }
-    nav button { background: rgba(255,255,255,0.1); border: none; color: #e2e8f0; padding: 8px 16px; border-radius: 8px; cursor: pointer; }
-    .container { max-width: 1100px; margin: 32px auto; padding: 0 20px; }
-    .setup-panel { background: white; border: 1px solid #e2e8f0; border-radius: 16px; padding: 24px; margin-bottom: 32px; display: none; }
-    .setup-panel input { margin-right: 8px; padding: 10px 14px; border: 1px solid #cbd5e1; border-radius: 8px; }
-    .card { background: white; border: 1px solid #e2e8f0; border-radius: 16px; padding: 24px; }
-    table { width: 100%; border-collapse: collapse; }
-    th, td { padding: 14px 16px; border-bottom: 1px solid #f1f5f9; text-align: left; }
-    th { color: #64748b; font-weight: 600; font-size: 13px; }
-    select, .btn { padding: 8px 16px; border-radius: 8px; border: 1px solid #cbd5e1; background: white; cursor: pointer; }
-    .btn-primary { background: #e94560; color: white; border: none; font-weight: 500; }
-    .error-box { background: #fee2e2; border: 1px solid #fecaca; color: #991b1b; padding: 16px; border-radius: 8px; margin-bottom: 16px; }
-    .toast { position: fixed; bottom: 24px; right: 24px; background: #0f172a; color: white; padding: 12px 24px; border-radius: 12px; z-index: 1000; opacity: 0; transition: opacity 0.3s; }
-    .toast.show { opacity: 1; }
+    body { font-family: sans-serif; padding: 20px; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #ccc; padding: 10px; }
+    button { padding: 8px 16px; cursor: pointer; }
+    .toast { position: fixed; bottom: 20px; right: 20px; background: #333; color: white; padding: 10px 20px; border-radius: 8px; }
   </style>
 </head>
 <body>
-  <script>
-    if (!sessionStorage.getItem('qrlogin')) window.location.href = 'login.html';
-  </script>
-  <nav>
-    <div class="brand">⚡ QRIS Admin</div>
-    <div class="links">
-      <a href="index.html" class="active">📊 Dashboard</a>
-      <a href="editor.html">✏️ Editor</a>
-    </div>
-    <button onclick="logout()">Logout</button>
-  </nav>
-  <div class="container">
-    <div class="setup-panel" id="setupPanel">
-      <h3>⚙️ Konfigurasi Koneksi</h3>
-      <input type="password" id="tokenInput" placeholder="Token GitHub (ghp_...)">
-      <input type="text" id="gistIdInput" placeholder="Gist ID">
-      <input type="text" id="rawUrlInput" placeholder="Raw URL config.json" style="width:300px;">
-      <button class="btn-primary" onclick="saveSetup()">Simpan & Muat</button>
-    </div>
-    <div id="errorBox" class="error-box" style="display:none;"></div>
-    <div class="card">
-      <h2>📋 Daftar Toko</h2>
-      <table>
-        <thead><tr><th>Toko</th><th>Script Aktif</th><th>Ubah</th><th>Aksi</th></tr></thead>
-        <tbody id="storeBody"></tbody>
-      </table>
-    </div>
+  <h2>Dashboard QRIS</h2>
+  <div id="setup" style="display:none; margin-bottom:20px;">
+    <input type="password" id="tokenInput" placeholder="Token">
+    <input type="text" id="gistIdInput" placeholder="Gist ID">
+    <input type="text" id="rawUrlInput" placeholder="Raw URL" style="width:300px;">
+    <button onclick="saveSetup()">Simpan Setup</button>
   </div>
-  <div class="toast" id="toast"></div>
+  <table><thead><tr><th>Toko</th><th>Aktif</th><th>Ubah</th><th>Aksi</th></tr></thead><tbody id="tbody"></tbody></table>
+  <div class="toast" id="toast" style="display:none;"></div>
 
   <script>
-    (function() {
-      let CONFIG = {};
-      try { CONFIG = JSON.parse(localStorage.adminConfig || '{}'); } catch(e) {}
-      const setupPanel = document.getElementById('setupPanel');
-      const tokenInput = document.getElementById('tokenInput');
-      const gistIdInput = document.getElementById('gistIdInput');
-      const rawUrlInput = document.getElementById('rawUrlInput');
-      const storeBody = document.getElementById('storeBody');
-      const toastEl = document.getElementById('toast');
-      const errorBox = document.getElementById('errorBox');
+    if (!sessionStorage.getItem('qrlogin')) location.href = 'login.html';
 
-      if (CONFIG.token && CONFIG.gistId && CONFIG.rawUrl) {
-        setupPanel.style.display = 'none';
-        loadFromGist();
-      } else {
-        setupPanel.style.display = 'block';
-        if (CONFIG.token) tokenInput.value = CONFIG.token;
-        if (CONFIG.gistId) gistIdInput.value = CONFIG.gistId;
-        if (CONFIG.rawUrl) rawUrlInput.value = CONFIG.rawUrl;
+    let CONFIG = JSON.parse(localStorage.adminConfig || '{}');
+    if (CONFIG.token && CONFIG.gistId && CONFIG.rawUrl) {
+      document.getElementById('setup').style.display = 'none';
+      loadData();
+    } else {
+      document.getElementById('setup').style.display = 'block';
+      document.getElementById('tokenInput').value = CONFIG.token || '';
+      document.getElementById('gistIdInput').value = CONFIG.gistId || '';
+      document.getElementById('rawUrlInput').value = CONFIG.rawUrl || '';
+    }
+
+    window.saveSetup = function() {
+      CONFIG.token = document.getElementById('tokenInput').value.trim();
+      CONFIG.gistId = document.getElementById('gistIdInput').value.trim();
+      CONFIG.rawUrl = document.getElementById('rawUrlInput').value.trim();
+      localStorage.adminConfig = JSON.stringify(CONFIG);
+      document.getElementById('setup').style.display = 'none';
+      loadData();
+    };
+
+    let storeData = {};
+
+    async function loadData() {
+      document.getElementById('tbody').innerHTML = '<tr><td colspan="4">Loading...</td></tr>';
+      try {
+        const res = await fetch(CONFIG.rawUrl + '?t=' + Date.now());
+        const json = await res.json();
+        storeData = json.stores;
+        renderTable();
+      } catch(e) {
+        document.getElementById('tbody').innerHTML = '<tr><td colspan="4">❌ Gagal load: ' + e.message + '</td></tr>';
       }
+    }
 
-      window.saveSetup = async function() {
-        CONFIG.token = tokenInput.value.trim();
-        CONFIG.gistId = gistIdInput.value.trim();
-        CONFIG.rawUrl = rawUrlInput.value.trim();
-        localStorage.adminConfig = JSON.stringify(CONFIG);
-        setupPanel.style.display = 'none';
-        await loadFromGist();
-      };
-
-      let data = null;
-
-      async function loadFromGist() {
-        errorBox.style.display = 'none';
-        storeBody.innerHTML = '<tr><td colspan="4">Memuat data dari Gist...</td></tr>';
-        
-        try {
-          const url = CONFIG.rawUrl + '?t=' + Date.now();
-          console.log('Fetching:', url);
-          const res = await fetch(url);
-          
-          if (!res.ok) {
-            throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-          }
-          
-          const text = await res.text();
-          console.log('Response length:', text.length);
-          
-          data = JSON.parse(text);
-          
-          if (!data.stores) {
-            throw new Error('Format config.json tidak valid (tidak ada "stores")');
-          }
-          
-          console.log('Toko dimuat:', Object.keys(data.stores).length);
-          renderTable();
-        } catch(e) {
-          console.error('Gagal load:', e);
-          errorBox.style.display = 'block';
-          errorBox.innerHTML = `
-            <strong>❌ Gagal memuat data dari Gist</strong><br>
-            <small>${e.message}</small><br>
-            <small>URL: ${CONFIG.rawUrl}</small><br>
-            <button onclick="loadFromGist()" style="margin-top:8px;">Coba Lagi</button>
-          `;
-          storeBody.innerHTML = '';
-        }
-      }
-
-      function renderTable() {
-        if (!storeBody || !data || !data.stores) return;
-        storeBody.innerHTML = '';
-        
-        const stores = Object.entries(data.stores);
-        if (stores.length === 0) {
-          storeBody.innerHTML = '<tr><td colspan="4">Tidak ada toko di config.json</td></tr>';
-          return;
-        }
-        
-        stores.forEach(([key, store]) => {
-          const active = store.script_options ? store.script_options[store.active_index] : null;
-          const row = storeBody.insertRow();
-          row.innerHTML = `
-            <td><strong>${store.name || key}</strong></td>
+    function renderTable() {
+      const tbody = document.getElementById('tbody');
+      tbody.innerHTML = '';
+      Object.entries(storeData).forEach(([key, store]) => {
+        const active = store.script_options[store.active_index];
+        tbody.innerHTML += `
+          <tr>
+            <td>${store.name}</td>
             <td>${active ? active.name : '—'}</td>
             <td>
               <select id="sel-${key}">
-                ${store.script_options ? store.script_options.map((opt,i) => 
-                  `<option value="${i}" ${i===store.active_index?'selected':''}>${opt.name}</option>`
-                ).join('') : '<option>—</option>'}
+                ${store.script_options.map((o,i) => `<option value="${i}" ${i===store.active_index?'selected':''}>${o.name}</option>`).join('')}
               </select>
             </td>
-            <td>
-              <button class="btn-primary" onclick="updateActive('${key}')">Simpan</button>
-              <span id="st-${key}" style="margin-left:12px;"></span>
-            </td>
-          `;
+            <td><button onclick="update('${key}')">Simpan</button> <span id="st-${key}"></span></td>
+          </tr>`;
+      });
+    }
+
+    window.update = async function(key) {
+      const newIdx = parseInt(document.getElementById('sel-'+key).value);
+      const st = document.getElementById('st-'+key);
+      st.textContent = '⏳';
+
+      try {
+        // Ambil gist terbaru
+        const gistUrl = `https://api.github.com/gists/${CONFIG.gistId}`;
+        const gistRes = await fetch(gistUrl, {
+          headers: { 'Authorization': `token ${CONFIG.token}` }
         });
-      }
+        if (!gistRes.ok) throw new Error('Gagal ambil gist: ' + gistRes.status);
+        const gistData = await gistRes.json();
 
-      window.updateActive = async function(key) {
-        const sel = document.getElementById('sel-'+key);
-        if (!sel) return;
-        
-        const newIdx = parseInt(sel.value);
-        if (!confirm('Ubah script aktif untuk ' + key + '?')) return;
-        
-        const st = document.getElementById('st-'+key);
-        st.textContent = '⏳';
+        // Parse
+        const config = JSON.parse(gistData.files['config.json'].content);
+        let logs = [];
+        try { logs = JSON.parse(gistData.files['log.json'].content); } catch(e) {}
 
-        try {
-          // 1. Ambil data TERBARU dari Gist
-          const gistUrl = `https://api.github.com/gists/${CONFIG.gistId}`;
-          const gistRes = await fetch(gistUrl, {
-            headers: { 'Authorization': `token ${CONFIG.token}` }
-          });
-          
-          if (!gistRes.ok) {
-            throw new Error(`Gagal ambil gist (HTTP ${gistRes.status})`);
-          }
-          
-          const gistData = await gistRes.json();
+        // Ubah
+        const store = config.stores[key];
+        if (!store) throw new Error('Toko tidak ditemukan');
+        store.active_index = newIdx;
 
-          // 2. Parse config & log
-          const latestConfig = JSON.parse(gistData.files['config.json'].content);
-          let logs = [];
-          try { logs = JSON.parse(gistData.files['log.json'].content); } catch(e) {}
+        // Log
+        logs.push({
+          timestamp: new Date().toISOString(),
+          store: key,
+          action: 'Ubah active_index ke ' + newIdx
+        });
 
-          // 3. Ubah active_index
-          const store = latestConfig.stores[key];
-          if (!store) throw new Error(`Toko "${key}" tidak ditemukan di Gist`);
-          
-          const oldName = store.script_options[store.active_index].name;
-          const newName = store.script_options[newIdx].name;
-          store.active_index = newIdx;
+        // Simpan
+        const updateRes = await fetch(gistUrl, {
+          method: 'PATCH',
+          headers: {
+            'Authorization': `token ${CONFIG.token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            files: {
+              'config.json': { content: JSON.stringify(config, null, 2) },
+              'log.json': { content: JSON.stringify(logs, null, 2) }
+            }
+          })
+        });
 
-          // 4. Tambah log
-          logs.push({
-            timestamp: new Date().toISOString(),
-            store: key,
-            action: `Ubah: ${oldName} → ${newName}`,
-            user_agent: navigator.userAgent
-          });
-
-          // 5. Simpan ke Gist
-          const updateRes = await fetch(gistUrl, {
-            method: 'PATCH',
-            headers: {
-              'Authorization': `token ${CONFIG.token}`,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              files: {
-                'config.json': { content: JSON.stringify(latestConfig, null, 2) },
-                'log.json': { content: JSON.stringify(logs, null, 2) }
-              }
-            })
-          });
-
-          if (!updateRes.ok) {
-            const errText = await updateRes.text();
-            throw new Error('Gagal simpan: ' + errText);
-          }
-
-          // 6. Berhasil — muat ulang dari Gist
-          st.textContent = '✅';
-          showToast('✅ Berhasil disimpan ke Gist');
-          
-          // Tunggu sebentar agar Gist terupdate, lalu ambil ulang
-          setTimeout(() => loadFromGist(), 500);
-          
-        } catch(e) {
-          st.textContent = '❌';
-          showToast('❌ ' + e.message);
-          console.error(e);
+        if (!updateRes.ok) {
+          const err = await updateRes.text();
+          throw new Error('Gagal simpan: ' + err);
         }
-        
-        setTimeout(() => st.textContent = '', 2500);
-      };
 
-      function showToast(msg) {
-        if (!toastEl) return;
-        toastEl.textContent = msg;
-        toastEl.classList.add('show');
-        setTimeout(() => toastEl.classList.remove('show'), 3000);
+        // Sukses — muat ulang
+        st.textContent = '✅';
+        showToast('Berhasil');
+        await loadData();
+      } catch(e) {
+        st.textContent = '❌';
+        showToast('Gagal: ' + e.message);
+        alert('Gagal: ' + e.message);
       }
+    };
 
-      window.loadFromGist = loadFromGist;
-      
-      window.logout = function() {
-        sessionStorage.removeItem('qrlogin');
-        window.location.href = 'login.html';
-      };
-    })();
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.style.display = 'block';
+      setTimeout(() => t.style.display = 'none', 2000);
+    }
+
+    window.logout = function() {
+      sessionStorage.removeItem('qrlogin');
+      location.href = 'login.html';
+    };
   </script>
 </body>
 </html>
