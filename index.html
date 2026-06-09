@@ -7,22 +7,42 @@
     body { font-family: Arial; padding: 20px; }
     table { border-collapse: collapse; width: 100%; }
     th, td { border: 1px solid #ccc; padding: 8px; }
-    button { padding: 5px 10px; }
+    button { padding: 5px 10px; cursor: pointer; }
+    .setup { background: #f0f0f0; padding: 15px; margin-bottom: 20px; display: none; }
+    .setup input { margin-right: 8px; padding: 6px; }
   </style>
 </head>
 <body>
-  <h2>Dashboard QRIS</h2>
-  <div id="app">⏳ Memuat dari Gist...</div>
+  <h2>📊 Dashboard QRIS</h2>
+  <div class="setup" id="setupPanel">
+    <input type="password" id="tokenInput" placeholder="Token">
+    <input type="text" id="gistIdInput" placeholder="Gist ID">
+    <input type="text" id="rawUrlInput" placeholder="Raw URL" style="width:300px;">
+    <button onclick="saveSetup()">Simpan & Muat</button>
+  </div>
+  <div id="app">⏳ Memuat...</div>
 
   <script>
     if (!sessionStorage.getItem('qrlogin')) location.href = 'login.html';
-
     var cfg = JSON.parse(localStorage.adminConfig || '{}');
-    if (!cfg.rawUrl) {
-      document.getElementById('app').innerHTML = '⚠️ Setup belum lengkap';
-    } else {
+    if (cfg.token && cfg.gistId && cfg.rawUrl) {
+      document.getElementById('setupPanel').style.display = 'none';
       load();
+    } else {
+      document.getElementById('setupPanel').style.display = 'block';
+      if (cfg.token) document.getElementById('tokenInput').value = cfg.token;
+      if (cfg.gistId) document.getElementById('gistIdInput').value = cfg.gistId;
+      if (cfg.rawUrl) document.getElementById('rawUrlInput').value = cfg.rawUrl;
     }
+
+    window.saveSetup = function() {
+      cfg.token = document.getElementById('tokenInput').value.trim();
+      cfg.gistId = document.getElementById('gistIdInput').value.trim();
+      cfg.rawUrl = document.getElementById('rawUrlInput').value.trim();
+      localStorage.adminConfig = JSON.stringify(cfg);
+      document.getElementById('setupPanel').style.display = 'none';
+      load();
+    };
 
     var stores = {};
 
@@ -35,7 +55,7 @@
           render();
         })
         .catch(e => {
-          document.getElementById('app').innerHTML = '❌ ' + e.message + ' <button onclick="load()">Coba Lagi</button>';
+          document.getElementById('app').innerHTML = '❌ ' + e.message;
         });
     }
 
@@ -47,7 +67,8 @@
         html += '<tr><td><b>' + s.name + '</b></td><td>' + (a?a.name:'—') + '</td>';
         html += '<td><select id="sel_' + key + '">';
         s.script_options.forEach((o,i) => html += '<option value="' + i + '" ' + (i===s.active_index?'selected':'') + '>' + o.name + '</option>');
-        html += '</select></td><td><button onclick="simpan(\'' + key + '\')">Simpan</button> <span id="st_' + key + '"></span></td></tr>';
+        html += '</select></td>';
+        html += '<td><button onclick="simpan(\'' + key + '\')">Simpan</button> <span id="st_' + key + '"></span></td></tr>';
       });
       html += '</table>';
       document.getElementById('app').innerHTML = html;
@@ -57,51 +78,25 @@
       var newIdx = document.getElementById('sel_' + key).value;
       var st = document.getElementById('st_' + key);
       st.textContent = '⏳';
-
       try {
-        var gistUrl = 'https://api.github.com/gists/' + cfg.gistId;
-        
-        // Get latest
-        var gistRes = await fetch(gistUrl, {
+        var gistRes = await fetch('https://api.github.com/gists/' + cfg.gistId, {
           headers: { 'Authorization': 'token ' + cfg.token }
         });
         var gistData = await gistRes.json();
         var config = JSON.parse(gistData.files['config.json'].content);
         var logs = JSON.parse(gistData.files['log.json'].content || '[]');
-        
-        // Update
         config.stores[key].active_index = parseInt(newIdx);
-        logs.push({
-          timestamp: new Date().toISOString(),
-          store: key,
-          action: 'Ubah ke ' + config.stores[key].script_options[newIdx].name
-        });
-        
-        // Save
-        var updateRes = await fetch(gistUrl, {
+        logs.push({ timestamp: new Date().toISOString(), store: key, action: 'Ubah ke ' + config.stores[key].script_options[newIdx].name });
+        var updateRes = await fetch('https://api.github.com/gists/' + cfg.gistId, {
           method: 'PATCH',
-          headers: {
-            'Authorization': 'token ' + cfg.token,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            files: {
-              'config.json': { content: JSON.stringify(config, null, 2) },
-              'log.json': { content: JSON.stringify(logs, null, 2) }
-            }
-          })
+          headers: { 'Authorization': 'token ' + cfg.token, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ files: { 'config.json': { content: JSON.stringify(config, null, 2) }, 'log.json': { content: JSON.stringify(logs, null, 2) } } })
         });
-        
-        if (!updateRes.ok) throw new Error('Gagal simpan');
-        
-        // Update stores & render ulang
+        if (!updateRes.ok) throw new Error('Gagal');
         stores = config.stores;
         render();
         st.textContent = '✅';
-      } catch(e) {
-        st.textContent = '❌';
-        alert(e.message);
-      }
+      } catch(e) { st.textContent = '❌'; alert(e.message); }
     };
 
     window.logout = function() {
