@@ -1,97 +1,6 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Editor — QRIS Admin</title>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
-      background: #f8fafc;
-      color: #0f172a;
-    }
-    nav {
-      background: #0f172a;
-      color: white;
-      padding: 0 24px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      height: 64px;
-    }
-    nav .brand { font-weight: 700; font-size: 20px; color: #e94560; }
-    nav .links a { color: #cbd5e1; text-decoration: none; margin-left: 24px; font-weight: 500; }
-    nav .links a.active { color: white; }
-    nav button { background: rgba(255,255,255,0.1); border: none; color: #e2e8f0; padding: 8px 16px; border-radius: 8px; cursor: pointer; }
-    .container { max-width: 1100px; margin: 32px auto; padding: 0 20px; }
-    .store-block {
-      background: white;
-      border: 1px solid #e2e8f0;
-      border-radius: 16px;
-      padding: 24px;
-      margin-bottom: 24px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
-    }
-    textarea {
-      width: 100%;
-      height: 180px;
-      font-family: 'Fira Code', monospace;
-      font-size: 13px;
-      border: 1px solid #cbd5e1;
-      border-radius: 10px;
-      padding: 12px;
-      resize: vertical;
-    }
-    .opt-name-input {
-      font-weight: 600;
-      padding: 6px 10px;
-      border: 1px solid #cbd5e1;
-      border-radius: 8px;
-      margin-bottom: 8px;
-    }
-    .btn {
-      padding: 8px 16px;
-      border-radius: 8px;
-      border: none;
-      cursor: pointer;
-      font-weight: 500;
-      margin-right: 8px;
-    }
-    .btn-save { background: #10b981; color: white; }
-    .btn-add { background: #3b82f6; color: white; }
-    .btn-delete { background: #e94560; color: white; }
-    .toast {
-      position: fixed;
-      bottom: 24px;
-      right: 24px;
-      background: #0f172a;
-      color: white;
-      padding: 12px 24px;
-      border-radius: 12px;
-      z-index: 1000;
-      opacity: 0;
-      transition: opacity 0.3s;
-    }
-    .toast.show { opacity: 1; }
-  </style>
-</head>
-<body>
-  <script>
+<script>
     if (!sessionStorage.getItem('qrlogin')) window.location.href = 'login.html';
-  </script>
-  <nav>
-    <div class="brand">⚡ QRIS Admin</div>
-    <div class="links">
-      <a href="index.html">📊 Dashboard</a>
-      <a href="editor.html" class="active">✏️ Editor</a>
-    </div>
-    <button onclick="logout()">Logout</button>
-  </nav>
-  <div class="container" id="editorContainer"></div>
-  <div class="toast" id="toast"></div>
 
-  <script>
     let CONFIG = JSON.parse(localStorage.adminConfig || '{}');
     if (!CONFIG.token || !CONFIG.rawUrl) {
       document.body.innerHTML = '<div style="padding:40px;">⚠️ Silakan isi konfigurasi di <a href="index.html">Dashboard</a> terlebih dahulu.</div>';
@@ -148,41 +57,61 @@
 
     async function saveStore(key) {
       if (!confirm('Simpan perubahan script untuk ' + key + '?')) return;
-      const store = data.stores[key];
-      document.querySelectorAll(`[data-key="${key}"].opt-name-input`).forEach((inp,i) => {
-        if (store.script_options[i]) store.script_options[i].name = inp.value;
-      });
-      document.querySelectorAll(`textarea[data-key="${key}"]`).forEach((ta,i) => {
-        if (store.script_options[i]) store.script_options[i].code = ta.value;
-      });
       const st = document.getElementById('status-'+key);
       st.textContent = '⏳';
+
       try {
-        const gistRes = await fetch(`https://api.github.com/gists/${CONFIG.gistId}`, {
+        // Ambil gist terbaru
+        const gistUrl = `https://api.github.com/gists/${CONFIG.gistId}`;
+        const gistRes = await fetch(gistUrl, {
           headers: { 'Authorization': `token ${CONFIG.token}` }
         });
+        if (!gistRes.ok) throw new Error('Gagal ambil gist');
         const gistData = await gistRes.json();
+
+        const latestConfig = JSON.parse(gistData.files['config.json'].content);
         let logs = [];
         try { logs = JSON.parse(gistData.files['log.json'].content); } catch(e){}
+
+        // Update config terbaru dari input
+        const store = latestConfig.stores[key];
+        if (!store) throw new Error('Toko tidak ditemukan');
+        document.querySelectorAll(`.opt-name-input[data-key="${key}"]`).forEach((inp,i) => {
+          if (store.script_options[i]) store.script_options[i].name = inp.value;
+        });
+        document.querySelectorAll(`textarea[data-key="${key}"]`).forEach((ta,i) => {
+          if (store.script_options[i]) store.script_options[i].code = ta.value;
+        });
+
         logs.push({
           timestamp: new Date().toISOString(),
           store: key,
           action: 'Edit kode script',
           user_agent: navigator.userAgent
         });
-        const updateRes = await fetch(`https://api.github.com/gists/${CONFIG.gistId}`, {
+
+        const updateRes = await fetch(gistUrl, {
           method: 'PATCH',
-          headers: { 'Authorization': `token ${CONFIG.token}`, 'Content-Type': 'application/json' },
+          headers: {
+            'Authorization': `token ${CONFIG.token}`,
+            'Content-Type': 'application/json'
+          },
           body: JSON.stringify({
             files: {
-              'config.json': { content: JSON.stringify(data, null, 2) },
+              'config.json': { content: JSON.stringify(latestConfig, null, 2) },
               'log.json': { content: JSON.stringify(logs, null, 2) }
             }
           })
         });
-        st.textContent = updateRes.ok ? '✅' : '❌';
-        showToast(updateRes.ok ? '✅ Tersimpan' : '❌ Gagal');
-      } catch(e) { st.textContent = '❌'; }
+
+        if (!updateRes.ok) throw new Error('Gagal menyimpan');
+        st.textContent = '✅';
+        showToast('✅ Tersimpan');
+        await loadData();
+      } catch(e) {
+        st.textContent = '❌';
+        showToast('❌ Error: ' + e.message);
+      }
       setTimeout(() => st.textContent = '', 2000);
     }
 
@@ -197,6 +126,4 @@
       sessionStorage.removeItem('qrlogin');
       window.location.href = 'login.html';
     }
-  </script>
-</body>
-</html>
+</script>
