@@ -7,7 +7,7 @@
   <style>
     body { font-family: 'Segoe UI', Arial, sans-serif; padding: 20px; background: #f5f5f5; margin: 0; }
     h2 { color: #333; margin-bottom: 20px; }
-    table { border-collapse: collapse; width: 100%; background: white; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border-radius: 8px; overflow: hidden; }
+    table { border-collapse: collapse; width: 100%; background: white; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border-radius: 8px; overflow: hidden; margin-top: 15px; }
     th { background: #1e293b; color: white; padding: 12px 8px; text-align: left; }
     td { border-bottom: 1px solid #eee; padding: 10px 8px; }
     tr:hover { background: #fafafa; }
@@ -24,7 +24,9 @@
     .toolbar { margin-bottom: 15px; overflow: hidden; }
     .toolbar a { margin-left: 10px; text-decoration: none; color: #1e293b; font-weight: bold; }
     .toolbar a:hover { color: #e94560; }
-    #status { font-size: 13px; margin-left: 8px; }
+    .status { font-size: 13px; margin-left: 8px; }
+    select { padding: 6px; border-radius: 4px; border: 1px solid #ccc; }
+    .mapping-info { font-size: 11px; color: #666; display: block; margin-top: 4px; }
   </style>
 </head>
 <body>
@@ -42,7 +44,7 @@
     <h3>⚙️ Setup Konfigurasi</h3>
     <input type="password" id="tokenInput" placeholder="GitHub Token">
     <input type="text" id="gistIdInput" placeholder="Gist ID">
-    <input type="text" id="rawUrlInput" placeholder="Raw URL (untuk inject script)">
+    <input type="text" id="rawUrlInput" placeholder="Raw URL">
     <button class="btn-save" onclick="saveSetup()">💾 Simpan & Muat</button>
   </div>
 
@@ -71,7 +73,6 @@
 
     var stores = {};
 
-    // Menggunakan API GitHub agar tidak terkena cache CDN
     function load() {
       document.getElementById('app').innerHTML = '⏳ Memuat data...';
       fetch(`https://api.github.com/gists/${cfg.gistId}`, {
@@ -92,24 +93,58 @@
         });
     }
 
+    function escapeHtml(str) {
+      return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
     function render() {
       if (Object.keys(stores).length === 0) {
         document.getElementById('app').innerHTML = '<p>Belum ada toko.</p>';
         return;
       }
-      var html = '<table><tr><th>Toko</th><th>Script Aktif</th><th>Ubah Ke</th><th>Aksi</th></tr>';
+      
+      var html = '<table><tr><th>Toko</th><th>Script Aktif</th><th>Mapping</th><th>Ubah Ke</th><th>Aksi</th></tr>';
+      
       Object.keys(stores).forEach(function(key) {
         var s = stores[key];
-        var a = s.script_options[s.active_index];
-        html += '<tr><td><b>' + s.name + '</b><br><small style="color:#888;">' + key + '</small></td>';
-        html += '<td>✅ ' + (a ? a.name : '—') + '</td>';
-        html += '<td><select id="sel_' + key + '" style="padding:6px;">';
-        s.script_options.forEach((o, i) => 
-          html += '<option value="' + i + '" ' + (i === s.active_index ? 'selected' : '') + '>' + o.name + '</option>'
-        );
-        html += '</select></td>';
-        html += '<td><button class="btn-save" onclick="simpan(\'' + key + '\')">💾 Simpan</button><span id="st_' + key + '"></span></td></tr>';
+        var sourceKey = s.use_script_from || key;
+        var sourceStore = stores[sourceKey];
+        var isMapping = sourceKey !== key;
+        
+        html += '<tr>';
+        html += '<td><b>' + escapeHtml(s.name) + '</b><br><small style="color:#888;">' + escapeHtml(key) + '</small></td>';
+        
+        if (isMapping && sourceStore) {
+          var activeOpt = sourceStore.script_options[sourceStore.active_index];
+          html += '<td>🔀 ' + (activeOpt ? escapeHtml(activeOpt.name) : '—') + '<span class="mapping-info">(dari ' + escapeHtml(sourceKey) + ')</span></td>';
+        } else {
+          var activeOpt = s.script_options[s.active_index];
+          html += '<td>✅ ' + (activeOpt ? escapeHtml(activeOpt.name) : '—') + '</td>';
+        }
+        
+        html += '<td>';
+        if (isMapping) {
+          html += '<span style="color:#3b82f6;">🔗 ' + escapeHtml(sourceKey) + '</span>';
+        } else {
+          html += '<span style="color:#888;">— (master)</span>';
+        }
+        html += '</td>';
+        
+        // Dropdown untuk ubah active_index (hanya untuk master store)
+        if (!isMapping && s.script_options && s.script_options.length > 0) {
+          html += '<td><select id="sel_' + key + '" style="padding:6px;">';
+          s.script_options.forEach((o, i) => 
+            html += '<option value="' + i + '" ' + (i === s.active_index ? 'selected' : '') + '>' + escapeHtml(o.name) + '</option>'
+          );
+          html += '</select></td>';
+          html += '<td><button class="btn-save" onclick="simpan(\'' + key + '\')">💾 Simpan</button><span class="status" id="st_' + key + '"></span></td>';
+        } else {
+          html += '<td colspan="2" style="color:#888; text-align:center;">(Ikut ' + escapeHtml(sourceKey) + ')</td>';
+        }
+        
+        html += '</tr>';
       });
+      
       html += '</table>';
       document.getElementById('app').innerHTML = html;
     }
@@ -118,6 +153,7 @@
       var newIdx = document.getElementById('sel_' + key).value;
       var st = document.getElementById('st_' + key);
       st.textContent = ' ⏳';
+      
       try {
         var gistRes = await fetch('https://api.github.com/gists/' + cfg.gistId, {
           headers: { 'Authorization': 'token ' + cfg.token }
@@ -126,7 +162,6 @@
         var gistData = await gistRes.json();
         var config = JSON.parse(gistData.files['config.json'].content);
         
-        // Cek log.json dengan aman
         var logs = [];
         if (gistData.files['log.json']) {
           try { logs = JSON.parse(gistData.files['log.json'].content || '[]'); } catch(e) { logs = []; }
@@ -152,7 +187,7 @@
             } 
           })
         });
-        if (!updateRes.ok) throw new Error('Gagal menyimpan (HTTP ' + updateRes.status + ')');
+        if (!updateRes.ok) throw new Error('HTTP ' + updateRes.status);
         stores = config.stores;
         render();
         st.textContent = ' ✅';
