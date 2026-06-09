@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Editor — QRIS Admin</title>
+  <title>Editor QRIS</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: 'Segoe UI', system-ui, sans-serif; background: #f8fafc; color: #0f172a; }
@@ -106,6 +106,8 @@
       window.saveStore = async function(key) {
         if (!confirm('Simpan perubahan script untuk ' + key + '?')) return;
         const store = data.stores[key];
+        
+        // Update data lokal dari input
         document.querySelectorAll(`.opt-name-input[data-key="${key}"]`).forEach((inp,i) => {
           if (store.script_options[i]) store.script_options[i].name = inp.value;
         });
@@ -117,8 +119,9 @@
         st.textContent = '⏳';
 
         try {
+          // Ambil gist terbaru
           const gistUrl = `https://api.github.com/gists/${CONFIG.gistId}`;
-          let gistRes = await fetch(gistUrl, {
+          const gistRes = await fetch(gistUrl, {
             headers: { 'Authorization': `token ${CONFIG.token}` }
           });
           if (!gistRes.ok) throw new Error('Gagal ambil gist');
@@ -128,9 +131,9 @@
           let logs = [];
           try { logs = JSON.parse(gistData.files['log.json'].content); } catch(e) {}
 
-          // Update config dengan data dari editor
+          // Ganti data toko yang bersangkutan dengan data dari editor
           latestConfig.stores[key] = JSON.parse(JSON.stringify(store));
-          
+
           logs.push({
             timestamp: new Date().toISOString(),
             store: key,
@@ -153,13 +156,13 @@
           });
 
           if (!updateRes.ok) {
-            const err = await updateRes.text();
-            throw new Error('Gagal menyimpan: ' + err);
+            const errText = await updateRes.text();
+            throw new Error('Gagal menyimpan: ' + errText);
           }
 
           st.textContent = '✅';
           showToast('✅ Tersimpan ke Gist');
-          await loadFromGist(); // Refresh
+          await loadFromGist(); // Refresh data dari Gist
         } catch(e) {
           st.textContent = '❌';
           showToast('❌ ' + e.message);
