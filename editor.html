@@ -39,7 +39,7 @@
   </nav>
   <div class="container">
     <div id="errorBox" class="error-box"></div>
-    <div id="editorContainer"><p>Memuat data dari Gist...</p></div>
+    <div id="editorContainer"><p>⏳ Memuat data dari Gist...</p></div>
   </div>
   <div class="toast" id="toast"></div>
 
@@ -56,12 +56,12 @@
         return;
       }
 
-      let storeData = {};
+      let storeData = null;
       loadFromGist();
 
       async function loadFromGist() {
         errorBox.style.display = 'none';
-        container.innerHTML = '<p>Memuat data dari Gist...</p>';
+        container.innerHTML = '<p>⏳ Memuat data dari Gist...</p>';
         try {
           const res = await fetch(CONFIG.rawUrl + '?t=' + Date.now());
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -77,7 +77,7 @@
       }
 
       function renderEditor() {
-        if (!container) return;
+        if (!container || !storeData) return;
         container.innerHTML = '';
         Object.entries(storeData).forEach(([key, store]) => {
           const div = document.createElement('div');
@@ -115,12 +115,11 @@
       };
 
       window.saveStore = async function(key) {
-        if (!confirm('Simpan perubahan untuk ' + key + '?')) return;
+        if (!confirm('Simpan untuk ' + key + '?')) return;
         const st = document.getElementById('status-'+key);
         st.textContent = '⏳';
 
         try {
-          // Baca input
           const store = storeData[key];
           document.querySelectorAll(`.opt-name-input[data-key="${key}"]`).forEach((inp,i) => {
             if (store.script_options[i]) store.script_options[i].name = inp.value;
@@ -129,7 +128,6 @@
             if (store.script_options[i]) store.script_options[i].code = ta.value;
           });
 
-          // Ambil gist terbaru
           const gistUrl = `https://api.github.com/gists/${CONFIG.gistId}`;
           const gistRes = await fetch(gistUrl, {
             headers: { 'Authorization': `token ${CONFIG.token}` }
@@ -141,9 +139,8 @@
           let logs = [];
           try { logs = JSON.parse(gistData.files['log.json'].content); } catch(e) {}
 
-          // Update toko di config
           config.stores[key] = JSON.parse(JSON.stringify(store));
-
+          
           logs.push({
             timestamp: new Date().toISOString(),
             store: key,
@@ -151,7 +148,6 @@
             user_agent: navigator.userAgent
           });
 
-          // Simpan
           const updateRes = await fetch(gistUrl, {
             method: 'PATCH',
             headers: {
@@ -168,11 +164,10 @@
 
           if (!updateRes.ok) throw new Error('Gagal simpan');
 
-          // SUKSES
           storeData = config.stores;
           renderEditor();
           st.textContent = '✅';
-          showToast('✅ Tersimpan ke Gist');
+          showToast('✅ Tersimpan');
           
         } catch(e) {
           st.textContent = '❌';
