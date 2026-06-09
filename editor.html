@@ -20,6 +20,7 @@
     .btn-save { background: #10b981; color: white; }
     .btn-add { background: #3b82f6; color: white; }
     .btn-delete { background: #e94560; color: white; }
+    .error-box { background: #fee2e2; border: 1px solid #fecaca; color: #991b1b; padding: 16px; border-radius: 8px; margin-bottom: 16px; }
     .toast { position: fixed; bottom: 24px; right: 24px; background: #0f172a; color: white; padding: 12px 24px; border-radius: 12px; z-index: 1000; opacity: 0; transition: opacity 0.3s; }
     .toast.show { opacity: 1; }
   </style>
@@ -36,7 +37,10 @@
     </div>
     <button onclick="logout()">Logout</button>
   </nav>
-  <div class="container" id="editorContainer"></div>
+  <div class="container">
+    <div id="errorBox" class="error-box" style="display:none;"></div>
+    <div id="editorContainer"></div>
+  </div>
   <div class="toast" id="toast"></div>
 
   <script>
@@ -45,46 +49,53 @@
       try { CONFIG = JSON.parse(localStorage.adminConfig || '{}'); } catch(e) {}
       const container = document.getElementById('editorContainer');
       const toastEl = document.getElementById('toast');
+      const errorBox = document.getElementById('errorBox');
 
       if (!CONFIG.token || !CONFIG.rawUrl) {
         container.innerHTML = '<p>⚠️ Silakan isi konfigurasi di <a href="index.html">Dashboard</a> terlebih dahulu.</p>';
         return;
       }
 
-      let data = {};
+      let data = null;
       loadFromGist();
 
       async function loadFromGist() {
+        errorBox.style.display = 'none';
+        container.innerHTML = '<p>Memuat data dari Gist...</p>';
+        
         try {
           const res = await fetch(CONFIG.rawUrl + '?t=' + Date.now());
-          if (!res.ok) throw new Error('Gagal fetch config');
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
           data = await res.json();
+          if (!data.stores) throw new Error('Format config tidak valid');
           renderEditor();
         } catch(e) {
-          showToast('❌ Gagal memuat data');
+          errorBox.style.display = 'block';
+          errorBox.innerHTML = `<strong>❌ Gagal memuat</strong><br><small>${e.message}</small><br><button onclick="loadFromGist()">Coba Lagi</button>`;
+          container.innerHTML = '';
         }
       }
 
       function renderEditor() {
-        if (!container) return;
+        if (!container || !data) return;
         container.innerHTML = '';
         Object.entries(data.stores).forEach(([key, store]) => {
           const div = document.createElement('div');
           div.className = 'store-block';
-          div.innerHTML = `<h3>🏪 ${store.name} <small style="color:#64748b;">(${key})</small></h3>`;
+          div.innerHTML = `<h3>🏪 ${store.name} <small>(${key})</small></h3>`;
           store.script_options.forEach((opt, i) => {
             div.innerHTML += `
               <div style="margin-top:16px;">
                 <input class="opt-name-input" value="${opt.name}" data-key="${key}" data-idx="${i}">
                 <textarea data-key="${key}" data-idx="${i}">${opt.code || ''}</textarea>
-                <button class="btn btn-delete" onclick="deleteOption('${key}',${i})">🗑 Hapus</button>
+                <button class="btn btn-delete" onclick="deleteOption('${key}',${i})">🗑</button>
               </div>`;
           });
           div.innerHTML += `
             <div style="margin-top:16px;">
-              <button class="btn btn-add" onclick="addOption('${key}')">➕ Tambah Opsi</button>
-              <button class="btn btn-save" onclick="saveStore('${key}')">💾 Simpan ke Gist</button>
-              <span id="status-${key}" style="margin-left:12px;"></span>
+              <button class="btn btn-add" onclick="addOption('${key}')">➕ Tambah</button>
+              <button class="btn btn-save" onclick="saveStore('${key}')">💾 Simpan</button>
+              <span id="status-${key}"></span>
             </div>`;
           container.appendChild(div);
         });
@@ -96,7 +107,7 @@
       };
 
       window.deleteOption = function(key, idx) {
-        if (data.stores[key].script_options.length <= 1) return alert('Minimal 1 opsi.');
+        if (data.stores[key].script_options.length <= 1) return alert('Minimal 1');
         data.stores[key].script_options.splice(idx, 1);
         if (data.stores[key].active_index >= data.stores[key].script_options.length)
           data.stores[key].active_index = data.stores[key].script_options.length - 1;
@@ -104,17 +115,21 @@
       };
 
       window.saveStore = async function(key) {
-        if (!confirm('Simpan perubahan script untuk ' + key + '?')) return;
-        
+        if (!confirm('Simpan untuk ' + key + '?')) return;
         const st = document.getElementById('status-'+key);
         st.textContent = '⏳';
 
-        // Ambil data dari input
-        const inputNames = document.querySelectorAll(`.opt-name-input[data-key="${key}"]`);
-        const inputCodes = document.querySelectorAll(`textarea[data-key="${key}"]`);
-
         try {
-          // 1. Ambil data TERBARU dari Gist
+          // Ambil dari input
+          const store = data.stores[key];
+          document.querySelectorAll(`.opt-name-input[data-key="${key}"]`).forEach((inp,i) => {
+            if (store.script_options[i]) store.script_options[i].name = inp.value;
+          });
+          document.querySelectorAll(`textarea[data-key="${key}"]`).forEach((ta,i) => {
+            if (store.script_options[i]) store.script_options[i].code = ta.value;
+          });
+
+          // Ambil gist terbaru
           const gistUrl = `https://api.github.com/gists/${CONFIG.gistId}`;
           const gistRes = await fetch(gistUrl, {
             headers: { 'Authorization': `token ${CONFIG.token}` }
@@ -122,31 +137,21 @@
           if (!gistRes.ok) throw new Error('Gagal ambil gist');
           const gistData = await gistRes.json();
 
-          // 2. Parse config & log terbaru
           const latestConfig = JSON.parse(gistData.files['config.json'].content);
           let logs = [];
           try { logs = JSON.parse(gistData.files['log.json'].content); } catch(e) {}
 
-          // 3. Update toko dengan data dari editor
-          const store = latestConfig.stores[key];
-          if (!store) throw new Error('Toko tidak ditemukan');
+          // Update toko
+          latestConfig.stores[key] = JSON.parse(JSON.stringify(store));
           
-          inputNames.forEach((inp, i) => {
-            if (store.script_options[i]) store.script_options[i].name = inp.value;
-          });
-          inputCodes.forEach((ta, i) => {
-            if (store.script_options[i]) store.script_options[i].code = ta.value;
-          });
-
-          // 4. Tambah log
           logs.push({
             timestamp: new Date().toISOString(),
             store: key,
-            action: 'Edit kode script',
+            action: 'Edit script',
             user_agent: navigator.userAgent
           });
 
-          // 5. SIMPAN ke Gist
+          // Simpan
           const updateRes = await fetch(gistUrl, {
             method: 'PATCH',
             headers: {
@@ -161,16 +166,11 @@
             })
           });
 
-          if (!updateRes.ok) {
-            const errText = await updateRes.text();
-            throw new Error('Gagal menyimpan: ' + errText);
-          }
-
-          // 6. Berhasil
-          data = latestConfig;
+          if (!updateRes.ok) throw new Error('Gagal simpan');
+          
           st.textContent = '✅';
-          showToast('✅ Tersimpan ke Gist');
-          renderEditor();
+          showToast('✅ Tersimpan');
+          setTimeout(() => loadFromGist(), 500);
         } catch(e) {
           st.textContent = '❌';
           showToast('❌ ' + e.message);
@@ -184,6 +184,8 @@
         toastEl.classList.add('show');
         setTimeout(() => toastEl.classList.remove('show'), 3000);
       }
+
+      window.loadFromGist = loadFromGist;
 
       window.logout = function() {
         sessionStorage.removeItem('qrlogin');
