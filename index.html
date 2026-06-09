@@ -8,46 +8,26 @@
     table { border-collapse: collapse; width: 100%; }
     th, td { border: 1px solid #ccc; padding: 8px; }
     button { padding: 5px 10px; cursor: pointer; }
-    .setup { background: #f0f0f0; padding: 15px; margin-bottom: 20px; display: none; }
-    .setup input { margin-right: 8px; padding: 6px; }
   </style>
 </head>
 <body>
-  <h2>📊 Dashboard QRIS</h2>
-  <div class="setup" id="setupPanel">
-    <input type="password" id="tokenInput" placeholder="Token">
-    <input type="text" id="gistIdInput" placeholder="Gist ID">
-    <input type="text" id="rawUrlInput" placeholder="Raw URL" style="width:300px;">
-    <button onclick="saveSetup()">Simpan & Muat</button>
-  </div>
-  <div id="app">⏳ Memuat...</div>
+  <h2>Dashboard QRIS</h2>
+  <div id="app">⏳ Memuat dari Gist...</div>
 
   <script>
     if (!sessionStorage.getItem('qrlogin')) location.href = 'login.html';
-    var cfg = JSON.parse(localStorage.adminConfig || '{}');
-    if (cfg.token && cfg.gistId && cfg.rawUrl) {
-      document.getElementById('setupPanel').style.display = 'none';
-      load();
-    } else {
-      document.getElementById('setupPanel').style.display = 'block';
-      if (cfg.token) document.getElementById('tokenInput').value = cfg.token;
-      if (cfg.gistId) document.getElementById('gistIdInput').value = cfg.gistId;
-      if (cfg.rawUrl) document.getElementById('rawUrlInput').value = cfg.rawUrl;
-    }
 
-    window.saveSetup = function() {
-      cfg.token = document.getElementById('tokenInput').value.trim();
-      cfg.gistId = document.getElementById('gistIdInput').value.trim();
-      cfg.rawUrl = document.getElementById('rawUrlInput').value.trim();
-      localStorage.adminConfig = JSON.stringify(cfg);
-      document.getElementById('setupPanel').style.display = 'none';
+    var cfg = JSON.parse(localStorage.adminConfig || '{}');
+    if (!cfg.rawUrl) {
+      document.getElementById('app').innerHTML = '⚠️ Setup belum lengkap';
+    } else {
       load();
-    };
+    }
 
     var stores = {};
 
     function load() {
-      document.getElementById('app').innerHTML = '⏳ Memuat...';
+      document.getElementById('app').innerHTML = '⏳ Memuat dari Gist...';
       fetch(cfg.rawUrl + '?t=' + Date.now())
         .then(r => r.json())
         .then(data => {
@@ -55,7 +35,7 @@
           render();
         })
         .catch(e => {
-          document.getElementById('app').innerHTML = '❌ ' + e.message;
+          document.getElementById('app').innerHTML = '❌ ' + e.message + ' <button onclick="load()">Coba Lagi</button>';
         });
     }
 
