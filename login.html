@@ -1,44 +1,117 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-  <meta charset="utf-8">
+  <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Login Admin QRIS</title>
+  <title>Login — QRIS Admin</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Segoe UI', sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; background: #1a1a2e; }
-    .login-box { background: #16213e; padding: 40px 30px; border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.3); text-align: center; color: #eee; width: 320px; }
-    h2 { margin-bottom: 24px; color: #e94560; }
-    input { padding: 12px; width: 100%; margin: 12px 0; border: 1px solid #0f3460; border-radius: 6px; background: #0f3460; color: #eee; font-size: 14px; }
-    input:focus { outline: none; border-color: #e94560; }
-    button { padding: 12px 0; width: 100%; cursor: pointer; background: #e94560; color: white; border: none; border-radius: 6px; font-size: 16px; font-weight: bold; }
+    body {
+      font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .login-card {
+      background: rgba(255,255,255,0.03);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 24px;
+      padding: 48px 40px;
+      width: 100%;
+      max-width: 400px;
+      box-shadow: 0 24px 80px rgba(0,0,0,0.5);
+      text-align: center;
+    }
+    .logo {
+      font-size: 48px;
+      margin-bottom: 8px;
+    }
+    h2 {
+      color: #f1f5f9;
+      font-weight: 600;
+      font-size: 24px;
+      margin-bottom: 32px;
+    }
+    .input-group {
+      margin-bottom: 20px;
+      text-align: left;
+    }
+    .input-group label {
+      color: #94a3b8;
+      font-size: 14px;
+      margin-bottom: 6px;
+      display: block;
+    }
+    .input-group input {
+      width: 100%;
+      padding: 14px 16px;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      background: #0f172a;
+      color: #e2e8f0;
+      font-size: 16px;
+      transition: all 0.2s;
+    }
+    .input-group input:focus {
+      outline: none;
+      border-color: #e94560;
+      box-shadow: 0 0 0 3px rgba(233,69,96,0.2);
+    }
+    button {
+      width: 100%;
+      padding: 14px;
+      background: #e94560;
+      color: white;
+      border: none;
+      border-radius: 12px;
+      font-weight: 600;
+      font-size: 16px;
+      cursor: pointer;
+      transition: background 0.2s;
+      margin-top: 8px;
+    }
     button:hover { background: #c23152; }
-    .error { color: #e94560; margin-top: 10px; font-size: 14px; }
+    .error-message {
+      color: #e94560;
+      font-size: 14px;
+      margin-top: 16px;
+      display: none;
+    }
+    .error-message.show { display: block; }
   </style>
 </head>
 <body>
-  <div class="login-box">
-    <h2>🔐 Admin QRIS</h2>
-    <input type="password" id="pw" placeholder="Masukkan password" autofocus>
-    <button onclick="login()">Login</button>
-    <p class="error" id="error"></p>
+  <div class="login-card">
+    <div class="logo">🔐</div>
+    <h2>QRIS Admin Panel</h2>
+    <div class="input-group">
+      <label>Password</label>
+      <input type="password" id="passwordInput" placeholder="Masukkan password" autofocus>
+    </div>
+    <button onclick="handleLogin()">Masuk</button>
+    <p class="error-message" id="errorMessage">❌ Password salah</p>
   </div>
 
   <script>
-    // ⚠️ GANTI PASSWORD DI SINI
-    const PASSWORD = 'admin123';
+    const PASSWORD = 'admin123'; // GANTI PASSWORD
 
-    function login() {
-      const input = document.getElementById('pw').value;
+    function handleLogin() {
+      const input = document.getElementById('passwordInput').value;
       if (input === PASSWORD) {
         sessionStorage.setItem('qrlogin', '1');
         window.location.href = 'index.html';
       } else {
-        document.getElementById('error').textContent = '❌ Password salah!';
+        const err = document.getElementById('errorMessage');
+        err.classList.add('show');
+        setTimeout(() => err.classList.remove('show'), 2500);
       }
     }
-    document.getElementById('pw').addEventListener('keydown', function(e) {
-      if (e.key === 'Enter') login();
+    document.getElementById('passwordInput').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') handleLogin();
     });
   </script>
 </body>
