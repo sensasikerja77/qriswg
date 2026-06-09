@@ -44,7 +44,7 @@
       <a href="editor.html">✏️ Editor Script</a>
     </div>
 
-    <div class="config-bar">
+    <div class="config-bar" id="configBar" style="display: none;">
       <strong>⚙️ Pengaturan</strong><br>
       Token: <input type="password" id="tokenInput" placeholder="ghp_..."><br>
       Gist ID: <input type="text" id="gistIdInput" placeholder="xxxxxxxxxxxxxxxx"><br>
@@ -60,17 +60,27 @@
 
   <script>
     let CONFIG = {};
-    if(localStorage.adminConfig) CONFIG = JSON.parse(localStorage.adminConfig);
-    if(CONFIG.token) document.getElementById('tokenInput').value = CONFIG.token;
-    if(CONFIG.gistId) document.getElementById('gistIdInput').value = CONFIG.gistId;
-    if(CONFIG.rawUrl) document.getElementById('rawUrlInput').value = CONFIG.rawUrl;
-    if(CONFIG.rawUrl) loadData();
+    if(localStorage.adminConfig) {
+      CONFIG = JSON.parse(localStorage.adminConfig);
+      if(CONFIG.token && CONFIG.gistId && CONFIG.rawUrl) {
+        document.getElementById('configBar').style.display = 'none';
+        loadData();
+      } else {
+        document.getElementById('configBar').style.display = 'block';
+        if(CONFIG.token) document.getElementById('tokenInput').value = CONFIG.token;
+        if(CONFIG.gistId) document.getElementById('gistIdInput').value = CONFIG.gistId;
+        if(CONFIG.rawUrl) document.getElementById('rawUrlInput').value = CONFIG.rawUrl;
+      }
+    } else {
+      document.getElementById('configBar').style.display = 'block';
+    }
 
     async function saveConfig() {
       CONFIG.token = document.getElementById('tokenInput').value.trim();
       CONFIG.gistId = document.getElementById('gistIdInput').value.trim();
       CONFIG.rawUrl = document.getElementById('rawUrlInput').value.trim();
       localStorage.adminConfig = JSON.stringify(CONFIG);
+      document.getElementById('configBar').style.display = 'none';
       await loadData();
     }
 
@@ -108,12 +118,16 @@
     async function updateActive(key) {
       const sel = document.querySelector(`select[data-key="${key}"]`);
       const newIdx = parseInt(sel.value);
-      const oldName = data.stores[key].script_options[data.stores[key].active_index].name;
-      const newName = data.stores[key].script_options[newIdx].name;
-      data.stores[key].active_index = newIdx;
+      const store = data.stores[key];
+      const oldIdx = store.active_index;
+      const oldName = store.script_options[oldIdx].name;
+      const newName = store.script_options[newIdx].name;
 
       const st = document.getElementById(`st-${key}`);
       st.textContent = '⏳...';
+
+      // Optimistic update
+      store.active_index = newIdx;
 
       const logEntry = {
         timestamp: new Date().toISOString(),
@@ -143,8 +157,18 @@
             }
           })
         });
-        st.textContent = updateRes.ok ? '✅' : '❌ Gagal';
-      } catch(e) { st.textContent = '❌ Error'; }
+
+        if (updateRes.ok) {
+          st.textContent = '✅';
+          renderTable();
+        } else {
+          st.textContent = '❌ Gagal';
+          store.active_index = oldIdx; // rollback
+        }
+      } catch(e) {
+        st.textContent = '❌ Error';
+        store.active_index = oldIdx;
+      }
     }
 
     function logout() {
