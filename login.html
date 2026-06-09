@@ -7,11 +7,13 @@
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: 'Segoe UI', sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; background: #0f172a; }
-    .login-box { background: #1e293b; padding: 40px 30px; border-radius: 16px; text-align: center; color: white; width: 320px; }
+    .login-box { background: #1e293b; padding: 40px 30px; border-radius: 16px; text-align: center; color: white; width: 320px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
     h2 { color: #e94560; margin-bottom: 24px; }
-    input { width: 100%; padding: 12px; margin: 12px 0; border: 1px solid #334155; border-radius: 8px; background: #0f172a; color: white; }
-    button { width: 100%; padding: 12px; background: #e94560; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
-    .error { color: #e94560; margin-top: 10px; display: none; }
+    input { width: 100%; padding: 12px; margin: 12px 0; border: 1px solid #334155; border-radius: 8px; background: #0f172a; color: white; font-size: 14px; }
+    input:focus { outline: none; border-color: #e94560; }
+    button { width: 100%; padding: 12px; background: #e94560; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 14px; transition: background 0.2s; }
+    button:hover { background: #c73650; }
+    .error { color: #e94560; margin-top: 10px; display: none; font-size: 13px; }
   </style>
 </head>
 <body>
@@ -22,7 +24,7 @@
     <p class="error" id="error">❌ Password salah</p>
   </div>
   <script>
-    const PASSWORD = 'admin123'; // ⚠️ GANTI
+    const PASSWORD = 'admin123'; // ⚠️ GANTI DENGAN PASSWORD ANDA
     function login() {
       if (document.getElementById('pw').value === PASSWORD) {
         sessionStorage.setItem('qrlogin', '1');
@@ -31,6 +33,9 @@
         document.getElementById('error').style.display = 'block';
       }
     }
+    document.getElementById('pw').addEventListener('keypress', e => {
+      if (e.key === 'Enter') login();
+    });
   </script>
 </body>
 </html>
