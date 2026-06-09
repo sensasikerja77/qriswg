@@ -20,7 +20,7 @@
     .btn-save { background: #10b981; color: white; }
     .btn-add { background: #3b82f6; color: white; }
     .btn-delete { background: #e94560; color: white; }
-    .error-box { background: #fee2e2; border: 1px solid #fecaca; color: #991b1b; padding: 16px; border-radius: 8px; margin-bottom: 16px; }
+    .error-box { background: #fee2e2; border: 1px solid #fecaca; color: #991b1b; padding: 16px; border-radius: 8px; margin-bottom: 16px; display: none; }
     .toast { position: fixed; bottom: 24px; right: 24px; background: #0f172a; color: white; padding: 12px 24px; border-radius: 12px; z-index: 1000; opacity: 0; transition: opacity 0.3s; }
     .toast.show { opacity: 1; }
   </style>
@@ -38,8 +38,8 @@
     <button onclick="logout()">Logout</button>
   </nav>
   <div class="container">
-    <div id="errorBox" class="error-box" style="display:none;"></div>
-    <div id="editorContainer"></div>
+    <div id="errorBox" class="error-box"></div>
+    <div id="editorContainer"><p>Memuat data dari Gist...</p></div>
   </div>
   <div class="toast" id="toast"></div>
 
@@ -56,18 +56,18 @@
         return;
       }
 
-      let data = null;
+      let storeData = {};
       loadFromGist();
 
       async function loadFromGist() {
         errorBox.style.display = 'none';
         container.innerHTML = '<p>Memuat data dari Gist...</p>';
-        
         try {
           const res = await fetch(CONFIG.rawUrl + '?t=' + Date.now());
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          data = await res.json();
-          if (!data.stores) throw new Error('Format config tidak valid');
+          const json = await res.json();
+          if (!json.stores) throw new Error('Format config tidak valid');
+          storeData = json.stores;
           renderEditor();
         } catch(e) {
           errorBox.style.display = 'block';
@@ -77,9 +77,9 @@
       }
 
       function renderEditor() {
-        if (!container || !data) return;
+        if (!container) return;
         container.innerHTML = '';
-        Object.entries(data.stores).forEach(([key, store]) => {
+        Object.entries(storeData).forEach(([key, store]) => {
           const div = document.createElement('div');
           div.className = 'store-block';
           div.innerHTML = `<h3>🏪 ${store.name} <small>(${key})</small></h3>`;
@@ -88,40 +88,40 @@
               <div style="margin-top:16px;">
                 <input class="opt-name-input" value="${opt.name}" data-key="${key}" data-idx="${i}">
                 <textarea data-key="${key}" data-idx="${i}">${opt.code || ''}</textarea>
-                <button class="btn btn-delete" onclick="deleteOption('${key}',${i})">🗑</button>
+                <button class="btn btn-delete" onclick="deleteOption('${key}',${i})">🗑 Hapus</button>
               </div>`;
           });
           div.innerHTML += `
             <div style="margin-top:16px;">
-              <button class="btn btn-add" onclick="addOption('${key}')">➕ Tambah</button>
-              <button class="btn btn-save" onclick="saveStore('${key}')">💾 Simpan</button>
-              <span id="status-${key}"></span>
+              <button class="btn btn-add" onclick="addOption('${key}')">➕ Tambah Opsi</button>
+              <button class="btn btn-save" onclick="saveStore('${key}')">💾 Simpan ke Gist</button>
+              <span id="status-${key}" style="margin-left:12px;"></span>
             </div>`;
           container.appendChild(div);
         });
       }
 
       window.addOption = function(key) {
-        data.stores[key].script_options.push({ name: 'Opsi Baru', code: '' });
+        storeData[key].script_options.push({ name: 'Opsi Baru', code: '' });
         renderEditor();
       };
 
       window.deleteOption = function(key, idx) {
-        if (data.stores[key].script_options.length <= 1) return alert('Minimal 1');
-        data.stores[key].script_options.splice(idx, 1);
-        if (data.stores[key].active_index >= data.stores[key].script_options.length)
-          data.stores[key].active_index = data.stores[key].script_options.length - 1;
+        if (storeData[key].script_options.length <= 1) return alert('Minimal 1 opsi');
+        storeData[key].script_options.splice(idx, 1);
+        if (storeData[key].active_index >= storeData[key].script_options.length)
+          storeData[key].active_index = storeData[key].script_options.length - 1;
         renderEditor();
       };
 
       window.saveStore = async function(key) {
-        if (!confirm('Simpan untuk ' + key + '?')) return;
+        if (!confirm('Simpan perubahan untuk ' + key + '?')) return;
         const st = document.getElementById('status-'+key);
         st.textContent = '⏳';
 
         try {
-          // Ambil dari input
-          const store = data.stores[key];
+          // Baca input
+          const store = storeData[key];
           document.querySelectorAll(`.opt-name-input[data-key="${key}"]`).forEach((inp,i) => {
             if (store.script_options[i]) store.script_options[i].name = inp.value;
           });
@@ -137,13 +137,13 @@
           if (!gistRes.ok) throw new Error('Gagal ambil gist');
           const gistData = await gistRes.json();
 
-          const latestConfig = JSON.parse(gistData.files['config.json'].content);
+          const config = JSON.parse(gistData.files['config.json'].content);
           let logs = [];
           try { logs = JSON.parse(gistData.files['log.json'].content); } catch(e) {}
 
-          // Update toko
-          latestConfig.stores[key] = JSON.parse(JSON.stringify(store));
-          
+          // Update toko di config
+          config.stores[key] = JSON.parse(JSON.stringify(store));
+
           logs.push({
             timestamp: new Date().toISOString(),
             store: key,
@@ -160,17 +160,20 @@
             },
             body: JSON.stringify({
               files: {
-                'config.json': { content: JSON.stringify(latestConfig, null, 2) },
+                'config.json': { content: JSON.stringify(config, null, 2) },
                 'log.json': { content: JSON.stringify(logs, null, 2) }
               }
             })
           });
 
           if (!updateRes.ok) throw new Error('Gagal simpan');
-          
+
+          // SUKSES
+          storeData = config.stores;
+          renderEditor();
           st.textContent = '✅';
-          showToast('✅ Tersimpan');
-          setTimeout(() => loadFromGist(), 500);
+          showToast('✅ Tersimpan ke Gist');
+          
         } catch(e) {
           st.textContent = '❌';
           showToast('❌ ' + e.message);
@@ -182,10 +185,8 @@
         if (!toastEl) return;
         toastEl.textContent = msg;
         toastEl.classList.add('show');
-        setTimeout(() => toastEl.classList.remove('show'), 3000);
+        setTimeout(() => toastEl.classList.remove('show'), 2500);
       }
-
-      window.loadFromGist = loadFromGist;
 
       window.logout = function() {
         sessionStorage.removeItem('qrlogin');
