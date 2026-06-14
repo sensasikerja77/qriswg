@@ -3,19 +3,30 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dashboard QRIS</title>
+  <title>Dashboard QRIS Auto</title>
   <style>
-    body { font-family: Arial; padding: 20px; background: #f5f5f5; margin: 0; }
-    table { border-collapse: collapse; width: 100%; background: white; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-    th { background: #1e293b; color: white; padding: 12px; text-align: left; }
-    td { border-bottom: 1px solid #eee; padding: 10px; }
-    button { padding: 6px 12px; cursor: pointer; border: none; border-radius: 4px; background: #10b981; color: white; font-weight: bold; }
-    .setup { background: white; padding: 20px; margin-bottom: 20px; display: none; }
-    .setup input { margin-right: 8px; padding: 8px; }
-    .btn-logout { background: #e94560; float: right; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; padding: 20px; background: #f5f5f5; margin: 0; }
+    h2 { color: #333; margin-bottom: 20px; }
+    table { border-collapse: collapse; width: 100%; background: white; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border-radius: 8px; overflow: hidden; margin-bottom: 20px; }
+    th { background: #1e293b; color: white; padding: 12px 8px; text-align: left; font-size: 14px; }
+    td { border-bottom: 1px solid #eee; padding: 10px 8px; font-size: 14px; vertical-align: top; }
+    tr:hover { background: #fafafa; }
+    button { padding: 6px 12px; cursor: pointer; border: none; border-radius: 4px; font-weight: bold; }
+    .btn-save { background: #10b981; color: white; }
+    .btn-save:hover { background: #059669; }
+    .btn-logout { background: #e94560; color: white; float: right; }
     .toolbar { margin-bottom: 15px; overflow: hidden; }
     .toolbar a { margin-left: 10px; text-decoration: none; color: #1e293b; font-weight: bold; }
-    select { padding: 6px; }
+    .saldo-box { background: #f8fafc; border: 1px solid #cbd5e1; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 12px; display: inline-block; margin: 2px 0; width: 100%; box-sizing: border-box; }
+    .status-dot { height: 8px; width: 8px; background-color: #10b981; border-radius: 50%; display: inline-block; margin-right: 5px; }
+    
+    .health-panel { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 20px; border-left: 5px solid #3b82f6; }
+    .health-panel h3 { margin-top: 0; color: #1e293b; }
+    
+    .setup { background: white; padding: 20px; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); display: none; }
+    .setup input { margin-right: 8px; padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
+    
+    select { padding: 6px; border-radius: 4px; border: 1px solid #ccc; }
   </style>
 </head>
 <body>
@@ -23,24 +34,33 @@
 
   <div class="toolbar">
     <button class="btn-logout" onclick="logout()">🚪 Logout</button>
-    <h2 style="display:inline-block;">📊 Dashboard QRIS</h2>
+    <h2 style="display:inline-block;">📊 Dashboard QRIS <span style="font-size:14px; color:#10b981;">(Auto-Saldo & Auto-Rotate)</span></h2>
     <a href="editor.html">✏️ Editor</a>
   </div>
 
   <div class="setup" id="setupPanel">
-    <h3>⚙️ Setup</h3>
-    <input type="password" id="tokenInput" placeholder="Token">
+    <h3>⚙️ Setup Konfigurasi</h3>
+    <input type="password" id="tokenInput" placeholder="GitHub Token">
     <input type="text" id="gistIdInput" placeholder="Gist ID">
-    <button onclick="saveSetup()">Simpan</button>
+    <button class="btn-save" onclick="saveSetup()">💾 Simpan & Muat</button>
   </div>
 
-  <div id="app">⏳ Memuat...</div>
+  <div class="health-panel" id="healthPanel" style="display:none;">
+    <h3>📊 Provider Global Health</h3>
+    <div id="healthBars"></div>
+  </div>
+
+  <div id="app">⏳ Memuat data & saldo...</div>
 
   <script>
     var cfg = JSON.parse(localStorage.adminConfig || '{}');
+    var stores = {};
+    var saldoData = {};
+    var providerLimits = {};
+
     if (cfg.token && cfg.gistId) {
       document.getElementById('setupPanel').style.display = 'none';
-      load();
+      loadAllData();
     } else {
       document.getElementById('setupPanel').style.display = 'block';
       if (cfg.token) document.getElementById('tokenInput').value = cfg.token;
@@ -52,62 +72,164 @@
       cfg.gistId = document.getElementById('gistIdInput').value.trim();
       localStorage.adminConfig = JSON.stringify(cfg);
       document.getElementById('setupPanel').style.display = 'none';
-      load();
+      loadAllData();
     };
 
-    var stores = {};
+    async function loadAllData() {
+      document.getElementById('app').innerHTML = '⏳ Memuat data dari GitHub...';
+      try {
+        const configRes = await fetch(`https://api.github.com/gists/${cfg.gistId}`, {
+          headers: { 'Authorization': 'token ' + cfg.token }
+        });
+        if (!configRes.ok) throw new Error('HTTP ' + configRes.status);
+        const gistData = await configRes.json();
+        const config = JSON.parse(gistData.files['config.json'].content);
+        
+        stores = config.stores || {};
+        providerLimits = config.provider_limits || {};
+        
+        if (gistData.files['saldo.json']) {
+          saldoData = JSON.parse(gistData.files['saldo.json'].content);
+        } else {
+          saldoData = {};
+        }
 
-    function load() {
-      document.getElementById('app').innerHTML = '⏳ Memuat...';
-      fetch(`https://api.github.com/gists/${cfg.gistId}`, { headers: { 'Authorization': 'token ' + cfg.token } })
-        .then(r => r.json())
-        .then(gistData => {
-          const data = JSON.parse(gistData.files['config.json'].content);
-          stores = data.stores;
-          render();
-        })
-        .catch(e => { document.getElementById('app').innerHTML = '❌ ' + e.message; });
+        renderHealthBars();
+        renderDashboard();
+      } catch (e) {
+        document.getElementById('app').innerHTML = '<p style="color:red;">❌ Gagal memuat: ' + e.message + ' <button class="btn-save" onclick="loadAllData()">Coba Lagi</button></p>';
+      }
     }
 
-    function render() {
-      var html = '<table><tr><th>Toko</th><th>Aktif</th><th>Ubah</th><th>Aksi</th></tr>';
+    function formatRupiah(angka) {
+      if (!angka && angka !== 0) return 'Belum ada data';
+      return 'Rp ' + parseInt(angka).toLocaleString('id-ID');
+    }
+
+    function renderHealthBars() {
+      if (Object.keys(providerLimits).length === 0) {
+        document.getElementById('healthPanel').style.display = 'none';
+        return;
+      }
+      document.getElementById('healthPanel').style.display = 'block';
+      let html = '';
+
+      for (const provider in providerLimits) {
+        const limitCfg = providerLimits[provider];
+        let totalBal = 0;
+
+        for (const store in saldoData) {
+          if (saldoData[store] && saldoData[store][provider]) {
+            totalBal += saldoData[store][provider].balance || 0;
+          }
+        }
+
+        const usagePct = Math.min(100, (totalBal / limitCfg.max_limit) * 100);
+        let barColor = '#10b981';
+        if (usagePct >= limitCfg.safe_pct) barColor = '#f59e0b';
+        if (usagePct >= limitCfg.trigger_pct) barColor = '#ef4444';
+
+        html += `
+          <div style="margin-bottom:15px;">
+            <div style="display:flex; justify-content:space-between; font-weight:bold; margin-bottom:5px;">
+              <span>${provider}</span>
+              <span style="color:${barColor}">${usagePct.toFixed(1)}% (Rp ${(totalBal/1000000000).toFixed(2)}M / Rp ${(limitCfg.max_limit/1000000000).toFixed(1)}M)</span>
+            </div>
+            <div style="background:#e2e8f0; border-radius:99px; height:12px; overflow:hidden;">
+              <div style="background:${barColor}; width:${usagePct}%; height:100%; transition:width 0.5s;"></div>
+            </div>
+            <small style="color:#666;">Trigger rotasi di ${limitCfg.trigger_pct}%. Target aman: ${limitCfg.safe_pct}%. Backup: ${limitCfg.backup_script}</small>
+          </div>
+        `;
+      }
+      document.getElementById('healthBars').innerHTML = html;
+    }
+
+    function renderDashboard() {
+      if (Object.keys(stores).length === 0) {
+        document.getElementById('app').innerHTML = '<p>Belum ada toko.</p>';
+        return;
+      }
+      
+      let html = '<table><tr><th>Toko</th><th>Script Aktif</th><th>Saldo Real-time</th><th>Ganti Manual</th></tr>';
+      
       Object.keys(stores).forEach(key => {
-        var s = stores[key];
-        var a = s.script_options[s.active_index];
-        html += '<tr><td><b>' + s.name + '</b></td><td>' + (a ? a.name : '—') + '</td>';
-        html += '<td><select id="sel_' + key + '">';
-        s.script_options.forEach((o, i) => html += '<option value="' + i + '" ' + (i === s.active_index ? 'selected' : '') + '>' + o.name + '</option>');
-        html += '</select></td>';
-        html += '<td><button onclick="simpan(\'' + key + '\')">Simpan</button> <span id="st_' + key + '"></span></td></tr>';
+        const s = stores[key];
+        const activeScript = s.script_options[s.active_index];
+        
+        const tokoSaldo = saldoData[key] || {};
+        const saldoFlyer = formatRupiah(tokoSaldo['QrisFlyer'] ? tokoSaldo['QrisFlyer'].balance : null);
+        const saldoHoki = formatRupiah(tokoSaldo['QRishoki'] ? tokoSaldo['QRishoki'].balance : null);
+        const saldoRaffles = formatRupiah(tokoSaldo['RafflesPay'] ? tokoSaldo['RafflesPay'].balance : null);
+
+        html += `<tr>
+          <td><b>${s.name}</b><br><small style="color:#888;">${key}</small></td>
+          <td><span class="status-dot"></span>${activeScript ? activeScript.name : '—'}</td>
+          <td>
+            <div class="saldo-box" style="border-color: #ef4444; color: #b91c1c;">Flyer: ${saldoFlyer}</div>
+            <div class="saldo-box" style="border-color: #f59e0b; color: #b45309;">Hoki: ${saldoHoki}</div>
+            <div class="saldo-box" style="border-color: #3b82f6; color: #1d4ed8;">Raffles: ${saldoRaffles}</div>
+          </td>
+          <td>
+            <select id="sel_${key}" style="padding:6px; margin-bottom:5px; width:100%;">
+              ${s.script_options.map((o, i) => `<option value="${i}" ${i === s.active_index ? 'selected' : ''}>${o.name}</option>`).join('')}
+            </select>
+            <button class="btn-save" onclick="simpan('${key}')" style="width:100%;">💾 Simpan</button>
+            <span id="st_${key}" style="font-size:12px;"></span>
+          </td>
+        </tr>`;
       });
+      
       html += '</table>';
+      html += '<p style="text-align:center; color:#666; font-size:12px;">💡 Saldo & Rotasi diupdate otomatis oleh Bot Telegram. Refresh halaman untuk data terbaru.</p>';
       document.getElementById('app').innerHTML = html;
     }
 
     window.simpan = async function(key) {
-      var newIdx = document.getElementById('sel_' + key).value;
-      var st = document.getElementById('st_' + key);
-      st.textContent = '⏳';
+      const newIdx = document.getElementById('sel_' + key).value;
+      const st = document.getElementById('st_' + key);
+      st.textContent = ' ⏳';
+      
       try {
-        var gistRes = await fetch('https://api.github.com/gists/' + cfg.gistId, { headers: { 'Authorization': 'token ' + cfg.token } });
-        var gistData = await gistRes.json();
-        var config = JSON.parse(gistData.files['config.json'].content);
-        var logs = [];
+        const gistRes = await fetch('https://api.github.com/gists/' + cfg.gistId, { 
+          headers: { 'Authorization': 'token ' + cfg.token } 
+        });
+        if (!gistRes.ok) throw new Error('HTTP ' + gistRes.status);
+        const gistData = await gistRes.json();
+        const config = JSON.parse(gistData.files['config.json'].content);
+        
+        let logs = [];
         if (gistData.files['log.json']) {
-          try { logs = JSON.parse(gistData.files['log.json'].content); } catch(e) {}
+          try { logs = JSON.parse(gistData.files['log.json'].content || '[]'); } catch(e) {}
         }
+        
         config.stores[key].active_index = parseInt(newIdx);
-        logs.push({ timestamp: new Date().toISOString(), store: key, action: 'Ubah ke ' + config.stores[key].script_options[newIdx].name });
-        var updateRes = await fetch('https://api.github.com/gists/' + cfg.gistId, {
+        logs.push({ 
+          timestamp: new Date().toISOString(), 
+          store: key, 
+          action: 'Ubah manual ke ' + config.stores[key].script_options[newIdx].name 
+        });
+        
+        const updateRes = await fetch('https://api.github.com/gists/' + cfg.gistId, {
           method: 'PATCH',
           headers: { 'Authorization': 'token ' + cfg.token, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ files: { 'config.json': { content: JSON.stringify(config, null, 2) }, 'log.json': { content: JSON.stringify(logs, null, 2) } } })
+          body: JSON.stringify({ 
+            files: { 
+              'config.json': { content: JSON.stringify(config, null, 2) }, 
+              'log.json': { content: JSON.stringify(logs, null, 2) } 
+            } 
+          })
         });
-        if (!updateRes.ok) throw new Error('Gagal');
+        
+        if (!updateRes.ok) throw new Error('HTTP ' + updateRes.status);
         stores = config.stores;
-        render();
-        st.textContent = '✅';
-      } catch(e) { st.textContent = '❌'; alert(e.message); }
+        renderDashboard();
+        st.textContent = ' ✅';
+        setTimeout(() => { if (document.getElementById('st_' + key)) document.getElementById('st_' + key).textContent = ''; }, 3000);
+      } catch(e) { 
+        st.textContent = ' ❌'; 
+        alert('Error: ' + e.message); 
+      }
     };
 
     window.logout = function() {
