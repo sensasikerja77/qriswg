@@ -21,12 +21,25 @@
     .status-dot { height: 8px; width: 8px; background-color: #10b981; border-radius: 50%; display: inline-block; margin-right: 5px; }
     
     .health-panel { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 20px; border-left: 5px solid #3b82f6; }
-    .health-panel h3 { margin-top: 0; color: #1e293b; }
+    .health-panel h3 { margin-top: 0; color: #1e293b; display: flex; justify-content: space-between; align-items: center; }
     
     .setup { background: white; padding: 20px; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); display: none; }
     .setup input { margin-right: 8px; padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
     
     select { padding: 6px; border-radius: 4px; border: 1px solid #ccc; }
+    
+    /* Toggle Switch Style */
+    .toggle-container { display: flex; align-items: center; gap: 10px; }
+    .toggle-switch { position: relative; width: 60px; height: 30px; }
+    .toggle-switch input { opacity: 0; width: 0; height: 0; }
+    .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 30px; }
+    .slider:before { position: absolute; content: ""; height: 22px; width: 22px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; }
+    input:checked + .slider { background-color: #10b981; }
+    input:checked + .slider:before { transform: translateX(30px); }
+    .toggle-label { font-weight: bold; font-size: 14px; }
+    .toggle-status { font-size: 12px; padding: 4px 8px; border-radius: 4px; font-weight: bold; }
+    .status-on { background: #d1fae5; color: #065f46; }
+    .status-off { background: #fee2e2; color: #991b1b; }
   </style>
 </head>
 <body>
@@ -46,7 +59,17 @@
   </div>
 
   <div class="health-panel" id="healthPanel" style="display:none;">
-    <h3>📊 Provider Global Health</h3>
+    <h3>
+      <span>📊 Provider Global Health</span>
+      <div class="toggle-container">
+        <span class="toggle-label">Auto-Rotate:</span>
+        <label class="toggle-switch">
+          <input type="checkbox" id="autoRotateToggle" onchange="toggleAutoRotate()">
+          <span class="slider"></span>
+        </label>
+        <span id="toggleStatus" class="toggle-status status-on">AKTIF</span>
+      </div>
+    </h3>
     <div id="healthBars"></div>
   </div>
 
@@ -57,6 +80,7 @@
     var stores = {};
     var saldoData = {};
     var providerLimits = {};
+    var autoRotateEnabled = true;
 
     if (cfg.token && cfg.gistId) {
       document.getElementById('setupPanel').style.display = 'none';
@@ -87,6 +111,7 @@
         
         stores = config.stores || {};
         providerLimits = config.provider_limits || {};
+        autoRotateEnabled = config.auto_rotate_enabled !== false;
         
         if (gistData.files['saldo.json']) {
           saldoData = JSON.parse(gistData.files['saldo.json'].content);
@@ -94,12 +119,67 @@
           saldoData = {};
         }
 
+        // Update toggle switch
+        document.getElementById('autoRotateToggle').checked = autoRotateEnabled;
+        updateToggleStatus();
+
         renderHealthBars();
         renderDashboard();
       } catch (e) {
         document.getElementById('app').innerHTML = '<p style="color:red;">❌ Gagal memuat: ' + e.message + ' <button class="btn-save" onclick="loadAllData()">Coba Lagi</button></p>';
       }
     }
+
+    function updateToggleStatus() {
+      const statusEl = document.getElementById('toggleStatus');
+      if (autoRotateEnabled) {
+        statusEl.textContent = 'AKTIF';
+        statusEl.className = 'toggle-status status-on';
+      } else {
+        statusEl.textContent = 'NONAKTIF';
+        statusEl.className = 'toggle-status status-off';
+      }
+    }
+
+    window.toggleAutoRotate = async function() {
+      const newValue = document.getElementById('autoRotateToggle').checked;
+      
+      if (!confirm(`Yakin ingin ${newValue ? 'MENGAKTIFKAN' : 'MENONAKTIFKAN'} auto-rotate?`)) {
+        document.getElementById('autoRotateToggle').checked = autoRotateEnabled;
+        return;
+      }
+
+      try {
+        const gistRes = await fetch(`https://api.github.com/gists/${cfg.gistId}`, { 
+          headers: { 'Authorization': 'token ' + cfg.token } 
+        });
+        if (!gistRes.ok) throw new Error('HTTP ' + gistRes.status);
+        const gistData = await gistRes.json();
+        const config = JSON.parse(gistData.files['config.json'].content);
+        
+        config.auto_rotate_enabled = newValue;
+        
+        const updateRes = await fetch(`https://api.github.com/gists/${cfg.gistId}`, {
+          method: 'PATCH',
+          headers: { 'Authorization': 'token ' + cfg.token, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            files: { 
+              'config.json': { content: JSON.stringify(config, null, 2) }
+            } 
+          })
+        });
+        
+        if (!updateRes.ok) throw new Error('HTTP ' + updateRes.status);
+        
+        autoRotateEnabled = newValue;
+        updateToggleStatus();
+        
+        alert(`✅ Auto-rotate berhasil ${newValue ? 'DIAKTIFKAN' : 'DINONAKTIFKAN'}`);
+      } catch(e) { 
+        alert('❌ Gagal mengubah status: ' + e.message);
+        document.getElementById('autoRotateToggle').checked = autoRotateEnabled;
+      }
+    };
 
     function formatRupiah(angka) {
       if (!angka && angka !== 0) return 'Belum ada data';
@@ -181,7 +261,7 @@
       });
       
       html += '</table>';
-      html += '<p style="text-align:center; color:#666; font-size:12px;">💡 Saldo & Rotasi diupdate otomatis oleh Bot Telegram. Refresh halaman untuk data terbaru.</p>';
+      html += '<p style="text-align:center; color:#666; font-size:12px;">💡 Saldo diupdate otomatis oleh Bot Telegram. Refresh halaman untuk data terbaru.</p>';
       document.getElementById('app').innerHTML = html;
     }
 
