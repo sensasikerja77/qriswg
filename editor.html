@@ -5,10 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Editor QRIS</title>
   <style>
-    body { font-family: Arial; padding: 20px; background: #f5f5f5; margin: 0; }
-    .store { background: white; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    body { font-family: 'Segoe UI', Arial, sans-serif; padding: 20px; background: #f5f5f5; margin: 0; }
+    h2 { color: #333; }
+    .store { background: white; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border-radius: 8px; }
     .store h3 { margin-top: 0; color: #1e293b; border-bottom: 2px solid #e94560; padding-bottom: 8px; }
-    textarea { width: 100%; height: 120px; font-family: monospace; font-size: 13px; padding: 8px; margin: 8px 0; box-sizing: border-box; }
+    textarea { width: 100%; height: 120px; font-family: 'Courier New', monospace; font-size: 13px; padding: 8px; margin: 8px 0; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; resize: vertical; }
     button { padding: 8px 14px; cursor: pointer; border: none; border-radius: 4px; font-weight: bold; margin-right: 5px; }
     .btn-add { background: #3b82f6; color: white; }
     .btn-save { background: #10b981; color: white; }
@@ -16,6 +17,9 @@
     .btn-logout { background: #e94560; color: white; float: right; }
     .toolbar { margin-bottom: 15px; overflow: hidden; }
     .toolbar a { margin-left: 10px; text-decoration: none; color: #1e293b; font-weight: bold; }
+    .status { font-size: 13px; margin-left: 8px; }
+    .opt-item { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; padding: 12px; margin: 10px 0; }
+    .opt-item input { width: 100%; padding: 8px; margin-bottom: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; box-sizing: border-box; font-weight: bold; }
   </style>
 </head>
 <body>
@@ -34,7 +38,7 @@
     let currentStores = {};
 
     if (!cfg.gistId || !cfg.token) {
-      document.getElementById('content').innerHTML = '<p style="color:red;">⚠️ Setup di <a href="index.html">Dashboard</a> dulu.</p>';
+      document.getElementById('content').innerHTML = '<p style="color:red;">⚠️ Setup Token & Gist ID di <a href="index.html">Dashboard</a> dulu.</p>';
     } else {
       loadFromGist();
     }
@@ -42,7 +46,9 @@
     async function loadFromGist() {
       document.getElementById('content').innerHTML = '⏳ Memuat...';
       try {
-        const res = await fetch(`https://api.github.com/gists/${cfg.gistId}`, { headers: { 'Authorization': `token ${cfg.token}` } });
+        const res = await fetch(`https://api.github.com/gists/${cfg.gistId}`, { 
+          headers: { 'Authorization': `token ${cfg.token}` } 
+        });
         if (!res.ok) throw new Error('HTTP ' + res.status);
         const gistData = await res.json();
         const data = JSON.parse(gistData.files['config.json'].content);
@@ -53,35 +59,39 @@
       }
     }
 
+    function escapeHtml(str) {
+      return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
     function renderEditor(stores) {
       let html = '';
       Object.entries(stores).forEach(([key, store]) => {
-        html += `<div class="store"><h3>${store.name} (${key})</h3>`;
+        html += `<div class="store"><h3>${escapeHtml(store.name)} <small style="color:#888;">(${escapeHtml(key)})</small></h3>`;
         store.script_options.forEach((opt, i) => {
           html += `
-            <div style="margin:10px 0; padding:10px; background:#f9fafb; border:1px solid #e5e7eb;">
-              <input value="${opt.name}" id="oname-${key}-${i}" style="width:100%; padding:8px; margin-bottom:8px;" placeholder="Nama Script">
-              <textarea id="ocode-${key}-${i}" placeholder="Kode JavaScript...">${opt.code || ''}</textarea>
+            <div class="opt-item">
+              <input value="${escapeHtml(opt.name)}" id="oname-${key}-${i}" placeholder="Nama Script">
+              <textarea id="ocode-${key}-${i}" placeholder="Kode JavaScript...">${escapeHtml(opt.code || '')}</textarea>
               <button class="btn-del" onclick="deleteOpt('${key}',${i})">🗑 Hapus</button>
             </div>`;
         });
         html += `
           <button class="btn-add" onclick="addOpt('${key}')">➕ Tambah</button>
           <button class="btn-save" onclick="saveStore('${key}')">💾 Simpan</button>
-          <span id="st-${key}"></span>
+          <span class="status" id="st-${key}"></span>
         </div>`;
       });
       document.getElementById('content').innerHTML = html;
     }
 
     window.addOpt = function(key) {
-      currentStores[key].script_options.push({ name: 'Baru', code: '' });
+      currentStores[key].script_options.push({ name: 'Script Baru', code: '' });
       renderEditor(currentStores);
     };
 
     window.deleteOpt = function(key, idx) {
-      if (currentStores[key].script_options.length <= 1) { alert('Minimal 1'); return; }
-      if (!confirm('Hapus?')) return;
+      if (currentStores[key].script_options.length <= 1) { alert('Minimal 1 script!'); return; }
+      if (!confirm('Hapus script "' + currentStores[key].script_options[idx].name + '"?')) return;
       currentStores[key].script_options.splice(idx, 1);
       if (currentStores[key].active_index >= currentStores[key].script_options.length) {
         currentStores[key].active_index = currentStores[key].script_options.length - 1;
@@ -91,7 +101,7 @@
 
     window.saveStore = async function(key) {
       const st = document.getElementById('st-' + key);
-      st.textContent = '⏳';
+      st.textContent = ' ⏳';
       try {
         currentStores[key].script_options.forEach((opt, i) => {
           const nameEl = document.getElementById(`oname-${key}-${i}`);
@@ -102,25 +112,35 @@
 
         const gistUrl = `https://api.github.com/gists/${cfg.gistId}`;
         const gistRes = await fetch(gistUrl, { headers: { 'Authorization': `token ${cfg.token}` } });
+        if (!gistRes.ok) throw new Error('HTTP ' + gistRes.status);
         const gistData = await gistRes.json();
         const config = JSON.parse(gistData.files['config.json'].content);
         config.stores = currentStores;
 
         let logs = [];
         if (gistData.files['log.json']) {
-          try { logs = JSON.parse(gistData.files['log.json'].content); } catch(e) {}
+          try { logs = JSON.parse(gistData.files['log.json'].content || '[]'); } catch(e) {}
         }
-        logs.push({ timestamp: new Date().toISOString(), store: key, action: 'Edit' });
+        logs.push({ timestamp: new Date().toISOString(), store: key, action: 'Edit script' });
 
         const updateRes = await fetch(gistUrl, {
           method: 'PATCH',
           headers: { 'Authorization': `token ${cfg.token}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ files: { 'config.json': { content: JSON.stringify(config, null, 2) }, 'log.json': { content: JSON.stringify(logs, null, 2) } } })
+          body: JSON.stringify({ 
+            files: { 
+              'config.json': { content: JSON.stringify(config, null, 2) }, 
+              'log.json': { content: JSON.stringify(logs, null, 2) } 
+            } 
+          })
         });
 
-        if (!updateRes.ok) throw new Error('Gagal');
-        st.textContent = '✅';
-      } catch(e) { st.textContent = '❌'; alert(e.message); }
+        if (!updateRes.ok) throw new Error('HTTP ' + updateRes.status);
+        st.textContent = ' ✅ Tersimpan';
+        setTimeout(() => { if (document.getElementById('st-' + key)) document.getElementById('st-' + key).textContent = ''; }, 3000);
+      } catch(e) { 
+        st.textContent = ' ❌'; 
+        alert('Error: ' + e.message); 
+      }
     };
 
     window.logout = function() {
