@@ -4,20 +4,26 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Editor QRIS</title>
+  <!-- Supabase JS Client -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     body { font-family: 'Segoe UI', Arial, sans-serif; padding: 20px; background: #f5f5f5; margin: 0; }
     h2 { color: #333; }
     .store { background: white; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border-radius: 8px; }
     .store h3 { margin-top: 0; color: #1e293b; border-bottom: 2px solid #e94560; padding-bottom: 8px; }
     textarea { width: 100%; height: 120px; font-family: 'Courier New', monospace; font-size: 13px; padding: 8px; margin: 8px 0; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; resize: vertical; }
-    button { padding: 8px 14px; cursor: pointer; border: none; border-radius: 4px; font-weight: bold; margin-right: 5px; }
+    button { padding: 8px 14px; cursor: pointer; border: none; border-radius: 4px; font-weight: bold; margin-right: 5px; transition: background 0.2s; }
     .btn-add { background: #3b82f6; color: white; }
+    .btn-add:hover { background: #2563eb; }
     .btn-save { background: #10b981; color: white; }
+    .btn-save:hover { background: #059669; }
+    .btn-save:disabled { background: #9ca3af; cursor: not-allowed; }
     .btn-del { background: #ef4444; color: white; }
+    .btn-del:hover { background: #dc2626; }
     .btn-logout { background: #e94560; color: white; float: right; }
     .toolbar { margin-bottom: 15px; overflow: hidden; }
     .toolbar a { margin-left: 10px; text-decoration: none; color: #1e293b; font-weight: bold; }
-    .status { font-size: 13px; margin-left: 8px; }
+    .status { font-size: 13px; margin-left: 8px; font-weight: bold; }
     .opt-item { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; padding: 12px; margin: 10px 0; }
     .opt-item input { width: 100%; padding: 8px; margin-bottom: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; box-sizing: border-box; font-weight: bold; }
   </style>
@@ -27,35 +33,40 @@
 
   <div class="toolbar">
     <button class="btn-logout" onclick="logout()">🚪 Logout</button>
-    <h2 style="display:inline-block;">✏️ Editor QRIS</h2>
-    <a href="index.html">📊 Dashboard</a>
+    <h2 style="display:inline-block;">✏️ Editor Script QRIS</h2>
+    <a href="index.html">📊 Kembali ke Dashboard</a>
   </div>
 
-  <div id="content">⏳ Memuat...</div>
+  <div id="content">⏳ Memuat data dari Supabase...</div>
 
   <script>
-    const cfg = JSON.parse(localStorage.adminConfig || '{}');
+    // 🌟 INJEKSI KREDENSIAL SUPABASE DI SINI (Sama dengan index.html) 🌟
+    const SUPABASE_URL = 'https://tktvwdejrcrsyzilizpm.supabase.co'; 
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRrdHZ3ZGVqcmNyc3l6aWxpenBtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM5NTQzMzAsImV4cCI6MjA5OTUzMDMzMH0.Ml9Iu7OsaVezLikiDX2SdMF3nRtttVU5F9brcOFnAL0';            
+
+    let supabaseClient = null;
     let currentStores = {};
 
-    if (!cfg.gistId || !cfg.token) {
-      document.getElementById('content').innerHTML = '<p style="color:red;">⚠️ Setup Token & Gist ID di <a href="index.html">Dashboard</a> dulu.</p>';
+    // Validasi awal
+    if (SUPABASE_URL.includes('YOUR_PROJECT_ID') || SUPABASE_ANON_KEY.includes('YOUR_ANON')) {
+      document.getElementById('content').innerHTML = '<p style="color:red; text-align:center; padding: 20px;">⚠️ ERROR: Silakan edit file <b>editor.html</b> dan masukkan SUPABASE_URL serta SUPABASE_ANON_KEY Anda terlebih dahulu di bagian atas script.</p>';
     } else {
-      loadFromGist();
+      supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      loadFromSupabase();
     }
 
-    async function loadFromGist() {
-      document.getElementById('content').innerHTML = '⏳ Memuat...';
+    async function loadFromSupabase() {
+      document.getElementById('content').innerHTML = '⏳ Memuat data dari Supabase...';
       try {
-        const res = await fetch(`https://api.github.com/gists/${cfg.gistId}`, { 
-          headers: { 'Authorization': `token ${cfg.token}` } 
-        });
-        if (!res.ok) throw new Error('HTTP ' + res.status);
-        const gistData = await res.json();
-        const data = JSON.parse(gistData.files['config.json'].content);
-        currentStores = data.stores;
+        const { data, error } = await supabaseClient.from('stores').select('*').order('id', { ascending: true });
+        if (error) throw error;
+        
+        currentStores = {};
+        data.forEach(s => { currentStores[s.id] = s; });
+        
         renderEditor(currentStores);
       } catch(e) {
-        document.getElementById('content').innerHTML = `<p style="color:red;">❌ ${e.message} <button class="btn-save" onclick="loadFromGist()">Coba Lagi</button></p>`;
+        document.getElementById('content').innerHTML = `<p style="color:red; text-align:center;">❌ Gagal memuat: ${e.message} <br><button class="btn-save" onclick="loadFromSupabase()">Coba Lagi</button></p>`;
       }
     }
 
@@ -66,33 +77,50 @@
     function renderEditor(stores) {
       let html = '';
       Object.entries(stores).forEach(([key, store]) => {
-        html += `<div class="store"><h3>${escapeHtml(store.name)} <small style="color:#888;">(${escapeHtml(key)})</small></h3>`;
+        html += `<div class="store">
+          <h3>${escapeHtml(store.name)} <small style="color:#888; font-weight:normal;">(ID: ${escapeHtml(key)})</small></h3>`;
+        
         store.script_options.forEach((opt, i) => {
           html += `
             <div class="opt-item">
-              <input value="${escapeHtml(opt.name)}" id="oname-${key}-${i}" placeholder="Nama Script">
-              <textarea id="ocode-${key}-${i}" placeholder="Kode JavaScript...">${escapeHtml(opt.code || '')}</textarea>
-              <button class="btn-del" onclick="deleteOpt('${key}',${i})">🗑 Hapus</button>
+              <input value="${escapeHtml(opt.name)}" id="oname-${key}-${i}" placeholder="Nama Script (misal: QRIS HOKI)">
+              <textarea id="ocode-${key}-${i}" placeholder="Tempel kode JavaScript di sini...">${escapeHtml(opt.code || '')}</textarea>
+              <button class="btn-del" onclick="deleteOpt('${key}', ${i})">🗑 Hapus Script Ini</button>
             </div>`;
         });
+        
         html += `
-          <button class="btn-add" onclick="addOpt('${key}')">➕ Tambah</button>
-          <button class="btn-save" onclick="saveStore('${key}')">💾 Simpan</button>
-          <span class="status" id="st-${key}"></span>
+          <div style="margin-top: 15px; border-top: 1px solid #eee; padding-top: 15px;">
+            <button class="btn-add" onclick="addOpt('${key}')">➕ Tambah Script Baru</button>
+            <button class="btn-save" id="btn-save-${key}" onclick="saveStore('${key}')">💾 Simpan Perubahan Toko Ini</button>
+            <span class="status" id="st-${key}"></span>
+          </div>
         </div>`;
       });
-      document.getElementById('content').innerHTML = html;
+      document.getElementById('content').innerHTML = html || '<p style="text-align:center;">Tidak ada data toko.</p>';
     }
 
     window.addOpt = function(key) {
       currentStores[key].script_options.push({ name: 'Script Baru', code: '' });
       renderEditor(currentStores);
+      // Scroll ke bawah agar user melihat input baru
+      setTimeout(() => {
+        const inputs = document.querySelectorAll(`[id^="oname-${key}-"]`);
+        if (inputs.length > 0) inputs[inputs.length - 1].focus();
+      }, 100);
     };
 
     window.deleteOpt = function(key, idx) {
-      if (currentStores[key].script_options.length <= 1) { alert('Minimal 1 script!'); return; }
-      if (!confirm('Hapus script "' + currentStores[key].script_options[idx].name + '"?')) return;
+      if (currentStores[key].script_options.length <= 1) { 
+        alert('Minimal harus ada 1 script di dalam toko!'); 
+        return; 
+      }
+      const scriptName = currentStores[key].script_options[idx].name;
+      if (!confirm(`Yakin ingin menghapus script "${scriptName}"?`)) return;
+      
       currentStores[key].script_options.splice(idx, 1);
+      
+      // Jika index aktif terhapus atau melampaui batas, sesuaikan ke index terakhir
       if (currentStores[key].active_index >= currentStores[key].script_options.length) {
         currentStores[key].active_index = currentStores[key].script_options.length - 1;
       }
@@ -101,8 +129,13 @@
 
     window.saveStore = async function(key) {
       const st = document.getElementById('st-' + key);
-      st.textContent = ' ⏳';
+      const btn = document.getElementById('btn-save-' + key);
+      
+      st.textContent = ' ⏳ Menyimpan...';
+      btn.disabled = true; // Mencegah double-click
+
       try {
+        // 1. Ambil data terbaru dari input field ke dalam object local
         currentStores[key].script_options.forEach((opt, i) => {
           const nameEl = document.getElementById(`oname-${key}-${i}`);
           const codeEl = document.getElementById(`ocode-${key}-${i}`);
@@ -110,36 +143,37 @@
           if (codeEl) opt.code = codeEl.value;
         });
 
-        const gistUrl = `https://api.github.com/gists/${cfg.gistId}`;
-        const gistRes = await fetch(gistUrl, { headers: { 'Authorization': `token ${cfg.token}` } });
-        if (!gistRes.ok) throw new Error('HTTP ' + gistRes.status);
-        const gistData = await gistRes.json();
-        const config = JSON.parse(gistData.files['config.json'].content);
-        config.stores = currentStores;
+        const updatedOptions = currentStores[key].script_options;
+        const activeScriptName = updatedOptions[currentStores[key].active_index]?.name || 'Unknown';
 
-        let logs = [];
-        if (gistData.files['log.json']) {
-          try { logs = JSON.parse(gistData.files['log.json'].content || '[]'); } catch(e) {}
+        // 2. Update kolom script_options di tabel stores (Supabase menangani JSONB dengan baik)
+        const { error: err1 } = await supabaseClient
+          .from('stores')
+          .update({ script_options: updatedOptions })
+          .eq('id', key);
+        if (err1) throw err1;
+
+        // 3. Catat ke tabel logs
+        const { error: err2 } = await supabaseClient
+          .from('logs')
+          .insert({ 
+            store_id: key, 
+            action: `Edit script: ${activeScriptName}` 
+          });
+        if (err2) {
+          console.warn('Gagal mencatat log, tapi data script berhasil disimpan:', err2);
         }
-        logs.push({ timestamp: new Date().toISOString(), store: key, action: 'Edit script' });
 
-        const updateRes = await fetch(gistUrl, {
-          method: 'PATCH',
-          headers: { 'Authorization': `token ${cfg.token}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            files: { 
-              'config.json': { content: JSON.stringify(config, null, 2) }, 
-              'log.json': { content: JSON.stringify(logs, null, 2) } 
-            } 
-          })
-        });
-
-        if (!updateRes.ok) throw new Error('HTTP ' + updateRes.status);
-        st.textContent = ' ✅ Tersimpan';
-        setTimeout(() => { if (document.getElementById('st-' + key)) document.getElementById('st-' + key).textContent = ''; }, 3000);
+        st.textContent = ' ✅ Tersimpan!';
+        setTimeout(() => { 
+          const el = document.getElementById('st-' + key);
+          if (el) el.textContent = ''; 
+        }, 3000);
       } catch(e) { 
-        st.textContent = ' ❌'; 
-        alert('Error: ' + e.message); 
+        st.textContent = ' ❌ Gagal!'; 
+        alert('Error saat menyimpan: ' + e.message); 
+      } finally {
+        btn.disabled = false;
       }
     };
 
