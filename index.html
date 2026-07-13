@@ -3,8 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dashboard QRIS Auto</title>
-  <!-- Supabase JS Client -->
+  <title>Dashboard QRIS</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     body { font-family: 'Segoe UI', Arial, sans-serif; padding: 20px; background: #f5f5f5; margin: 0; }
@@ -22,21 +21,8 @@
     .toolbar a { margin-left: 10px; text-decoration: none; color: #1e293b; font-weight: bold; }
     
     select { padding: 6px; border-radius: 4px; border: 1px solid #ccc; width: 100%; margin-bottom: 5px; }
-    
-    /* Toggle Switch Style */
-    .toggle-container { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-    .toggle-switch { position: relative; width: 60px; height: 30px; }
-    .toggle-switch input { opacity: 0; width: 0; height: 0; }
-    .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 30px; }
-    .slider:before { position: absolute; content: ""; height: 22px; width: 22px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; }
-    input:checked + .slider { background-color: #10b981; }
-    input:checked + .slider:before { transform: translateX(30px); }
-    .toggle-label { font-weight: bold; font-size: 14px; }
-    .toggle-status { font-size: 12px; padding: 4px 8px; border-radius: 4px; font-weight: bold; }
-    .status-on { background: #d1fae5; color: #065f46; }
-    .status-off { background: #fee2e2; color: #991b1b; }
-    
     .status-dot { height: 8px; width: 8px; background-color: #10b981; border-radius: 50%; display: inline-block; margin-right: 5px; }
+    .status-dot.disabled { background-color: #9ca3af; }
   </style>
 </head>
 <body>
@@ -48,38 +34,21 @@
     <a href="editor.html">✏️ Editor Script</a>
   </div>
 
-  <!-- Panel Auto-Rotate -->
-  <div class="toggle-container" id="rotatePanel">
-    <span class="toggle-label">Auto-Rotate Global:</span>
-    <label class="toggle-switch">
-      <input type="checkbox" id="autoRotateToggle" onchange="toggleAutoRotate()">
-      <span class="slider"></span>
-    </label>
-    <span id="toggleStatus" class="toggle-status status-on">AKTIF</span>
-  </div>
-
   <div id="app">⏳ Memuat data dari Supabase...</div>
 
   <script>
     // 🌟 INJEKSI KREDENSIAL SUPABASE DI SINI 🌟
-    // Ganti URL dan Anon Key di bawah ini dengan milik Anda dari menu Settings > API di Supabase
     const SUPABASE_URL = 'https://tktvwdejrcrsyzilizpm.supabase.co'; 
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRrdHZ3ZGVqcmNyc3l6aWxpenBtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM5NTQzMzAsImV4cCI6MjA5OTUzMDMzMH0.Ml9Iu7OsaVezLikiDX2SdMF3nRtttVU5F9brcOFnAL0';            
 
     let supabaseClient = null;
     let stores = {};
-    let autoRotateEnabled = true;
 
-    // Langsung inisialisasi saat halaman dibuka
-    initSupabase(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-    function initSupabase(url, key) {
-      if (!url || url.includes('YOUR_PROJECT_ID') || !key || key.includes('YOUR_ANON')) {
-        document.getElementById('app').innerHTML = '<p style="color:red; text-align:center;">⚠️ ERROR: Silakan edit kode HTML dan masukkan Supabase URL & Anon Key Anda terlebih dahulu.</p>';
-        return;
-      }
-
-      supabaseClient = window.supabase.createClient(url, key);
+    // Validasi awal
+    if (SUPABASE_URL.includes('YOUR_PROJECT_ID') || SUPABASE_ANON_KEY.includes('YOUR_ANON')) {
+      document.getElementById('app').innerHTML = '<p style="color:red; text-align:center;">⚠️ ERROR: Silakan edit file <b>index.html</b> dan masukkan SUPABASE_URL serta SUPABASE_ANON_KEY Anda.</p>';
+    } else {
+      supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
       loadAllData();
     }
 
@@ -87,57 +56,17 @@
     async function loadAllData() {
       document.getElementById('app').innerHTML = '⏳ Memuat data konfigurasi...';
       try {
-        // Ambil data stores
-        const { data: storesData, error: err1 } = await supabaseClient.from('stores').select('*').order('id', { ascending: true });
-        if (err1) throw err1;
+        const { data: storesData, error } = await supabaseClient.from('stores').select('*').order('id', { ascending: true });
+        if (error) throw error;
         
         stores = {};
         storesData.forEach(s => { stores[s.id] = s; });
-
-        // Ambil status auto-rotate
-        const { data: configData, error: err2 } = await supabaseClient.from('global_config').select('value').eq('key', 'auto_rotate_enabled').single();
-        if (!err2 && configData) {
-          autoRotateEnabled = configData.value === 'true';
-        }
         
-        document.getElementById('autoRotateToggle').checked = autoRotateEnabled;
-        updateToggleStatus();
         renderDashboard();
       } catch (e) {
-        document.getElementById('app').innerHTML = `<p style="color:red; text-align:center;">❌ Gagal memuat: ${e.message} <br><small>Pastikan URL/Key benar dan RLS sudah di-setup.</small><br><button class="btn-save" onclick="loadAllData()">Coba Lagi</button></p>`;
+        document.getElementById('app').innerHTML = `<p style="color:red; text-align:center;">❌ Gagal memuat: ${e.message} <br><button class="btn-save" onclick="loadAllData()">Coba Lagi</button></p>`;
       }
     }
-
-    function updateToggleStatus() {
-      const statusEl = document.getElementById('toggleStatus');
-      statusEl.textContent = autoRotateEnabled ? 'AKTIF' : 'NONAKTIF';
-      statusEl.className = `toggle-status ${autoRotateEnabled ? 'status-on' : 'status-off'}`;
-    }
-
-    // Toggle Auto-Rotate
-    window.toggleAutoRotate = async function() {
-      const newValue = document.getElementById('autoRotateToggle').checked;
-      
-      if (!confirm(`Yakin ingin ${newValue ? 'MENGAKTIFKAN' : 'MENONAKTIFKAN'} auto-rotate?`)) {
-        document.getElementById('autoRotateToggle').checked = autoRotateEnabled;
-        return;
-      }
-
-      try {
-        const { error } = await supabaseClient
-          .from('global_config')
-          .upsert({ key: 'auto_rotate_enabled', value: newValue.toString() });
-        
-        if (error) throw error;
-        
-        autoRotateEnabled = newValue;
-        updateToggleStatus();
-        alert(`✅ Auto-rotate berhasil ${newValue ? 'DIAKTIFKAN' : 'DINONAKTIFKAN'}`);
-      } catch(e) { 
-        alert('❌ Gagal mengubah status: ' + e.message);
-        document.getElementById('autoRotateToggle').checked = autoRotateEnabled;
-      }
-    };
 
     // Render Tampilan Dashboard
     function renderDashboard() {
@@ -146,11 +75,12 @@
         return;
       }
       
-      let html = '<table><tr><th style="width: 15%;">ID Toko</th><th style="width: 25%;">Nama Toko</th><th style="width: 25%;">Script Aktif</th><th style="width: 35%;">Ganti Manual</th></tr>';
+      let html = '<table><tr><th style="width: 20%;">ID Toko</th><th style="width: 30%;">Script Aktif</th><th style="width: 50%;">Ganti Manual</th></tr>';
       
       Object.keys(stores).forEach(key => {
         const s = stores[key];
         const activeScript = s.script_options[s.active_index];
+        const isDisabled = activeScript && activeScript.name === 'TIDAK ADA QRIS';
         
         const optionsHtml = s.script_options.map((o, i) => 
           `<option value="${i}" ${i === s.active_index ? 'selected' : ''}>${o.name}</option>`
@@ -158,9 +88,8 @@
 
         html += `<tr>
           <td><b>${key}</b></td>
-          <td>${s.name}</td>
           <td>
-            <span class="status-dot"></span>
+            <span class="status-dot ${isDisabled ? 'disabled' : ''}"></span>
             <b>${activeScript ? activeScript.name : 'Tidak ada'}</b>
           </td>
           <td>
@@ -185,28 +114,25 @@
       const btn = document.getElementById('btn_' + key);
       
       st.textContent = ' ⏳';
-      btn.disabled = true; // Mencegah double-click
+      btn.disabled = true;
       
       try {
         const activeName = stores[key].script_options[newIdx].name;
 
-        // A. Update tabel stores
         const { error: err1 } = await supabaseClient
           .from('stores')
           .update({ active_index: newIdx })
           .eq('id', key);
         if (err1) throw err1;
 
-        // B. Catat ke tabel logs
         const { error: err2 } = await supabaseClient
           .from('logs')
           .insert({ 
             store_id: key, 
             action: `Ubah manual script ke: ${activeName}` 
           });
-        if (err2) throw err2;
+        if (err2) console.warn('Gagal mencatat log:', err2);
 
-        // C. Update state lokal & re-render
         stores[key].active_index = newIdx;
         renderDashboard();
         
