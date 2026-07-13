@@ -24,126 +24,24 @@
     .toolbar a { text-decoration: none; color: #1e293b; font-weight: bold; }
     .status { font-size: 13px; margin-left: 8px; font-weight: bold; }
     
-    /* === STYLE ACCORDION TOKO === */
-    .store { 
-      background: white; 
-      margin-bottom: 10px; 
-      box-shadow: 0 2px 8px rgba(0,0,0,0.08); 
-      border-radius: 8px; 
-      overflow: hidden;
-      border: 1px solid #e5e7eb;
-    }
-    
-    /* Header toko (selalu terlihat, bisa diklik) */
-    .store-header { 
-      display: flex; 
-      justify-content: space-between; 
-      align-items: center; 
-      padding: 14px 20px; 
-      cursor: pointer; 
-      background: #1e293b;
-      color: white;
-      user-select: none;
-      transition: background 0.2s;
-    }
+    .store { background: white; margin-bottom: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border-radius: 8px; overflow: hidden; border: 1px solid #e5e7eb; }
+    .store-header { display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; cursor: pointer; background: #1e293b; color: white; user-select: none; transition: background 0.2s; }
     .store-header:hover { background: #334155; }
-    
-    .store-header-left { 
-      display: flex; 
-      align-items: center; 
-      gap: 12px; 
-      flex: 1;
-    }
+    .store-header-left { display: flex; align-items: center; gap: 12px; flex: 1; }
     .store-name { font-size: 16px; font-weight: bold; }
-    .store-id { 
-      font-size: 12px; 
-      background: rgba(255,255,255,0.15); 
-      padding: 2px 8px; 
-      border-radius: 4px; 
-      font-family: monospace;
-    }
-    .store-count { 
-      font-size: 12px; 
-      background: #10b981; 
-      padding: 2px 8px; 
-      border-radius: 4px; 
-      color: white;
-    }
-    .toggle-icon { 
-      font-size: 14px; 
-      transition: transform 0.3s ease; 
-      color: white;
-    }
+    .store-id { font-size: 12px; background: rgba(255,255,255,0.15); padding: 2px 8px; border-radius: 4px; font-family: monospace; }
+    .store-count { font-size: 12px; background: #10b981; padding: 2px 8px; border-radius: 4px; color: white; }
+    .toggle-icon { font-size: 14px; transition: transform 0.3s ease; color: white; }
     .store.expanded .toggle-icon { transform: rotate(180deg); }
-    
-    /* Body toko (tersembunyi default) */
-    .store-body { 
-      display: none; 
-      padding: 20px; 
-      background: #fafafa;
-      border-top: 1px solid #e5e7eb;
-    }
+    .store-body { display: none; padding: 20px; background: #fafafa; border-top: 1px solid #e5e7eb; }
     .store.expanded .store-body { display: block; }
-    
-    /* Script item di dalam toko */
-    .opt-item { 
-      background: white; 
-      border: 1px solid #e5e7eb; 
-      border-radius: 6px; 
-      padding: 12px; 
-      margin: 10px 0; 
-    }
-    .opt-item input { 
-      width: 100%; 
-      padding: 8px; 
-      margin-bottom: 8px; 
-      border: 1px solid #ccc; 
-      border-radius: 4px; 
-      font-size: 14px; 
-      box-sizing: border-box; 
-      font-weight: bold; 
-    }
-    textarea { 
-      width: 100%; 
-      height: 150px; 
-      font-family: 'Courier New', monospace; 
-      font-size: 13px; 
-      padding: 8px; 
-      margin: 8px 0; 
-      box-sizing: border-box; 
-      border: 1px solid #ccc; 
-      border-radius: 4px; 
-      resize: vertical; 
-    }
-    
-    .store-actions { 
-      margin-top: 15px; 
-      padding-top: 15px; 
-      border-top: 1px solid #eee; 
-    }
-    
-    .add-store-form { 
-      background: #e0f2fe; 
-      border: 1px solid #7dd3fc; 
-      padding: 15px; 
-      border-radius: 8px; 
-      margin-bottom: 20px; 
-      display: none; 
-    }
-    .add-store-form input { 
-      padding: 8px; 
-      border: 1px solid #ccc; 
-      border-radius: 4px; 
-      margin-right: 10px; 
-      width: 200px; 
-    }
-    
-    .empty-hint { 
-      color: #9ca3af; 
-      font-style: italic; 
-      text-align: center; 
-      padding: 20px;
-    }
+    .opt-item { background: white; border: 1px solid #e5e7eb; border-radius: 6px; padding: 12px; margin: 10px 0; }
+    .opt-item input { width: 100%; padding: 8px; margin-bottom: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; box-sizing: border-box; font-weight: bold; }
+    textarea { width: 100%; height: 150px; font-family: 'Courier New', monospace; font-size: 13px; padding: 8px; margin: 8px 0; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; resize: vertical; }
+    .store-actions { margin-top: 15px; padding-top: 15px; border-top: 1px solid #eee; }
+    .add-store-form { background: #e0f2fe; border: 1px solid #7dd3fc; padding: 15px; border-radius: 8px; margin-bottom: 20px; display: none; }
+    .add-store-form input { padding: 8px; border: 1px solid #ccc; border-radius: 4px; margin-right: 10px; width: 200px; }
+    .empty-hint { color: #9ca3af; font-style: italic; text-align: center; padding: 20px; }
   </style>
 </head>
 <body>
@@ -173,11 +71,11 @@
 
   <script>
     const SUPABASE_URL = 'https://tktvwdejrcrsyzilizpm.supabase.co'; 
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRrdHZ3ZGVqcmNyc3l6aWxpenBtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM5NTQzMzAsImV4cCI6MjA5OTUzMDMzMH0.Ml9Iu7OsaVezLikiDX2SdMF3nRtttVU5F9brcOFnAL0';            
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRrdHZ3ZGVqcmNyc3l6aWxpenBtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM5NTQzMzAsImV4cCI6MjA5OTUzMDMzMH0.Ml9Iu7OsaVezLikiDX2SdMF3nRtttVU5F9brcOFnAL0';
 
     let supabaseClient = null;
     let currentStores = {};
-    let expandedStores = new Set(); // Track toko mana yang sedang di-expand
+    let expandedStores = new Set();
 
     if (SUPABASE_URL.includes('YOUR_PROJECT_ID') || SUPABASE_ANON_KEY.includes('YOUR_ANON')) {
       document.getElementById('content').innerHTML = '<p style="color:red; text-align:center; padding: 20px;">⚠️ ERROR: Silakan edit file <b>editor.html</b> dan masukkan SUPABASE_URL serta SUPABASE_ANON_KEY Anda.</p>';
@@ -195,16 +93,13 @@
         currentStores = {};
         data.forEach(s => { currentStores[s.id] = s; });
         
-        // Pastikan semua toko punya "TIDAK ADA QRIS" (untuk dropdown dashboard)
         await ensureNoQrisOptionForAllStores();
-        
         renderEditor(currentStores);
       } catch(e) {
         document.getElementById('content').innerHTML = `<p style="color:red; text-align:center;">❌ Gagal memuat: ${e.message} <br><button class="btn-save" onclick="loadFromSupabase()">Coba Lagi</button></p>`;
       }
     }
 
-    // Auto tambahkan "TIDAK ADA QRIS" ke toko yang belum punya (untuk dropdown dashboard)
     async function ensureNoQrisOptionForAllStores() {
       for (const key in currentStores) {
         const store = currentStores[key];
@@ -233,7 +128,6 @@
       return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 
-    // 🔥 FILTER: Sembunyikan "TIDAK ADA QRIS" dari tampilan editor
     function getEditableScripts(store) {
       return store.script_options
         .map((opt, idx) => ({ ...opt, originalIndex: idx }))
@@ -248,7 +142,6 @@
         
         html += `
           <div class="store ${isExpanded ? 'expanded' : ''}" id="store-${key}">
-            <!-- HEADER (selalu terlihat, bisa diklik untuk expand/collapse) -->
             <div class="store-header" onclick="toggleStore('${key}')">
               <div class="store-header-left">
                 <span class="store-name">${escapeHtml(store.name)}</span>
@@ -261,7 +154,6 @@
               </div>
             </div>
             
-            <!-- BODY (tersembunyi default, muncul saat di-expand) -->
             <div class="store-body">
               ${editableScripts.length === 0 
                 ? '<div class="empty-hint">Belum ada script. Klik "➕ Tambah Script Baru" untuk menambahkan.</div>' 
@@ -290,7 +182,6 @@
       document.getElementById('content').innerHTML = html || '<p style="text-align:center;">Tidak ada data toko.</p>';
     }
 
-    // === FITUR COLLAPSE LEVEL TOKO ===
     window.toggleStore = function(key) {
       if (expandedStores.has(key)) {
         expandedStores.delete(key);
@@ -300,7 +191,6 @@
       const el = document.getElementById('store-' + key);
       if (el) el.classList.toggle('expanded');
     };
-    // ==================================
 
     window.toggleAddStore = function() {
       const form = document.getElementById('addStoreForm');
@@ -332,7 +222,6 @@
       btn.textContent = '⏳ Menyimpan...';
 
       try {
-        // Default: "TIDAK ADA QRIS" + 3 script kosong
         const defaultScripts = [
           { name: "TIDAK ADA QRIS", code: "" },
           { name: "QRIS HOKI", code: "" },
@@ -382,14 +271,20 @@
 
         if (error) throw error;
 
-        await supabaseClient.from('logs').insert({ 
-          store_id: key, 
-          action: `Hapus toko: ${storeName}` 
-        }).catch(e => console.warn('Gagal mencatat log:', e));
+        try {
+          await supabaseClient.from('logs').insert({ 
+            store_id: key, 
+            action: `Hapus toko: ${storeName}` 
+          });
+        } catch(logError) {
+          console.warn('Gagal mencatat log (tapi toko tetap terhapus):', logError);
+        }
 
         expandedStores.delete(key);
+        delete currentStores[key];
+        
         alert(`✅ Toko "${storeName}" berhasil dihapus!`);
-        loadFromSupabase();
+        renderEditor(currentStores);
       } catch(e) {
         alert('❌ Gagal menghapus toko: ' + e.message);
       }
@@ -397,7 +292,6 @@
 
     window.addOpt = function(key) {
       currentStores[key].script_options.push({ name: 'Script Baru', code: '' });
-      // Pastikan toko tetap expanded setelah re-render
       expandedStores.add(key);
       renderEditor(currentStores);
       setTimeout(() => {
@@ -434,7 +328,6 @@
       btn.disabled = true;
 
       try {
-        // Update data dari input ke object lokal
         currentStores[key].script_options.forEach((opt, i) => {
           const nameEl = document.getElementById(`oname-${key}-${i}`);
           const codeEl = document.getElementById(`ocode-${key}-${i}`);
