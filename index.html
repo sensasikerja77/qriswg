@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Dashboard QRIS Auto</title>
+  <!-- Supabase JS Client -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     body { font-family: 'Segoe UI', Arial, sans-serif; padding: 20px; background: #f5f5f5; margin: 0; }
     h2 { color: #333; margin-bottom: 20px; }
@@ -11,25 +13,18 @@
     th { background: #1e293b; color: white; padding: 12px 8px; text-align: left; font-size: 14px; }
     td { border-bottom: 1px solid #eee; padding: 10px 8px; font-size: 14px; vertical-align: top; }
     tr:hover { background: #fafafa; }
-    button { padding: 6px 12px; cursor: pointer; border: none; border-radius: 4px; font-weight: bold; }
+    button { padding: 6px 12px; cursor: pointer; border: none; border-radius: 4px; font-weight: bold; transition: background 0.2s; }
     .btn-save { background: #10b981; color: white; }
     .btn-save:hover { background: #059669; }
+    .btn-save:disabled { background: #9ca3af; cursor: not-allowed; }
     .btn-logout { background: #e94560; color: white; float: right; }
     .toolbar { margin-bottom: 15px; overflow: hidden; }
     .toolbar a { margin-left: 10px; text-decoration: none; color: #1e293b; font-weight: bold; }
-    .saldo-box { background: #f8fafc; border: 1px solid #cbd5e1; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 12px; display: inline-block; margin: 2px 0; width: 100%; box-sizing: border-box; }
-    .status-dot { height: 8px; width: 8px; background-color: #10b981; border-radius: 50%; display: inline-block; margin-right: 5px; }
     
-    .health-panel { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 20px; border-left: 5px solid #3b82f6; }
-    .health-panel h3 { margin-top: 0; color: #1e293b; display: flex; justify-content: space-between; align-items: center; }
-    
-    .setup { background: white; padding: 20px; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); display: none; }
-    .setup input { margin-right: 8px; padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
-    
-    select { padding: 6px; border-radius: 4px; border: 1px solid #ccc; }
+    select { padding: 6px; border-radius: 4px; border: 1px solid #ccc; width: 100%; margin-bottom: 5px; }
     
     /* Toggle Switch Style */
-    .toggle-container { display: flex; align-items: center; gap: 10px; }
+    .toggle-container { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
     .toggle-switch { position: relative; width: 60px; height: 30px; }
     .toggle-switch input { opacity: 0; width: 0; height: 0; }
     .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 30px; }
@@ -40,6 +35,8 @@
     .toggle-status { font-size: 12px; padding: 4px 8px; border-radius: 4px; font-weight: bold; }
     .status-on { background: #d1fae5; color: #065f46; }
     .status-off { background: #fee2e2; color: #991b1b; }
+    
+    .status-dot { height: 8px; width: 8px; background-color: #10b981; border-radius: 50%; display: inline-block; margin-right: 5px; }
   </style>
 </head>
 <body>
@@ -47,100 +44,77 @@
 
   <div class="toolbar">
     <button class="btn-logout" onclick="logout()">🚪 Logout</button>
-    <h2 style="display:inline-block;">📊 Dashboard QRIS <span style="font-size:14px; color:#10b981;">(Auto-Saldo & Auto-Rotate)</span></h2>
-    <a href="editor.html">✏️ Editor</a>
+    <h2 style="display:inline-block;">📊 Dashboard Konfigurasi QRIS</h2>
+    <a href="editor.html">✏️ Editor Script</a>
   </div>
 
-  <div class="setup" id="setupPanel">
-    <h3>⚙️ Setup Konfigurasi</h3>
-    <input type="password" id="tokenInput" placeholder="GitHub Token">
-    <input type="text" id="gistIdInput" placeholder="Gist ID">
-    <button class="btn-save" onclick="saveSetup()">💾 Simpan & Muat</button>
+  <!-- Panel Auto-Rotate -->
+  <div class="toggle-container" id="rotatePanel">
+    <span class="toggle-label">Auto-Rotate Global:</span>
+    <label class="toggle-switch">
+      <input type="checkbox" id="autoRotateToggle" onchange="toggleAutoRotate()">
+      <span class="slider"></span>
+    </label>
+    <span id="toggleStatus" class="toggle-status status-on">AKTIF</span>
   </div>
 
-  <div class="health-panel" id="healthPanel" style="display:none;">
-    <h3>
-      <span>📊 Provider Global Health</span>
-      <div class="toggle-container">
-        <span class="toggle-label">Auto-Rotate:</span>
-        <label class="toggle-switch">
-          <input type="checkbox" id="autoRotateToggle" onchange="toggleAutoRotate()">
-          <span class="slider"></span>
-        </label>
-        <span id="toggleStatus" class="toggle-status status-on">AKTIF</span>
-      </div>
-    </h3>
-    <div id="healthBars"></div>
-  </div>
-
-  <div id="app">⏳ Memuat data & saldo...</div>
+  <div id="app">⏳ Memuat data dari Supabase...</div>
 
   <script>
-    var cfg = JSON.parse(localStorage.adminConfig || '{}');
-    var stores = {};
-    var saldoData = {};
-    var providerLimits = {};
-    var autoRotateEnabled = true;
+    // 🌟 INJEKSI KREDENSIAL SUPABASE DI SINI 🌟
+    // Ganti URL dan Anon Key di bawah ini dengan milik Anda dari menu Settings > API di Supabase
+    const SUPABASE_URL = 'https://tktvwdejrcrsyzilizpm.supabase.co'; 
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRrdHZ3ZGVqcmNyc3l6aWxpenBtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM5NTQzMzAsImV4cCI6MjA5OTUzMDMzMH0.Ml9Iu7OsaVezLikiDX2SdMF3nRtttVU5F9brcOFnAL0';            
 
-    if (cfg.token && cfg.gistId) {
-      document.getElementById('setupPanel').style.display = 'none';
+    let supabaseClient = null;
+    let stores = {};
+    let autoRotateEnabled = true;
+
+    // Langsung inisialisasi saat halaman dibuka
+    initSupabase(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    function initSupabase(url, key) {
+      if (!url || url.includes('YOUR_PROJECT_ID') || !key || key.includes('YOUR_ANON')) {
+        document.getElementById('app').innerHTML = '<p style="color:red; text-align:center;">⚠️ ERROR: Silakan edit kode HTML dan masukkan Supabase URL & Anon Key Anda terlebih dahulu.</p>';
+        return;
+      }
+
+      supabaseClient = window.supabase.createClient(url, key);
       loadAllData();
-    } else {
-      document.getElementById('setupPanel').style.display = 'block';
-      if (cfg.token) document.getElementById('tokenInput').value = cfg.token;
-      if (cfg.gistId) document.getElementById('gistIdInput').value = cfg.gistId;
     }
 
-    window.saveSetup = function() {
-      cfg.token = document.getElementById('tokenInput').value.trim();
-      cfg.gistId = document.getElementById('gistIdInput').value.trim();
-      localStorage.adminConfig = JSON.stringify(cfg);
-      document.getElementById('setupPanel').style.display = 'none';
-      loadAllData();
-    };
-
+    // Ambil Data dari Supabase
     async function loadAllData() {
-      document.getElementById('app').innerHTML = '⏳ Memuat data dari GitHub...';
+      document.getElementById('app').innerHTML = '⏳ Memuat data konfigurasi...';
       try {
-        const configRes = await fetch(`https://api.github.com/gists/${cfg.gistId}`, {
-          headers: { 'Authorization': 'token ' + cfg.token }
-        });
-        if (!configRes.ok) throw new Error('HTTP ' + configRes.status);
-        const gistData = await configRes.json();
-        const config = JSON.parse(gistData.files['config.json'].content);
+        // Ambil data stores
+        const { data: storesData, error: err1 } = await supabaseClient.from('stores').select('*').order('id', { ascending: true });
+        if (err1) throw err1;
         
-        stores = config.stores || {};
-        providerLimits = config.provider_limits || {};
-        autoRotateEnabled = config.auto_rotate_enabled !== false;
-        
-        if (gistData.files['saldo.json']) {
-          saldoData = JSON.parse(gistData.files['saldo.json'].content);
-        } else {
-          saldoData = {};
-        }
+        stores = {};
+        storesData.forEach(s => { stores[s.id] = s; });
 
-        // Update toggle switch
+        // Ambil status auto-rotate
+        const { data: configData, error: err2 } = await supabaseClient.from('global_config').select('value').eq('key', 'auto_rotate_enabled').single();
+        if (!err2 && configData) {
+          autoRotateEnabled = configData.value === 'true';
+        }
+        
         document.getElementById('autoRotateToggle').checked = autoRotateEnabled;
         updateToggleStatus();
-
-        renderHealthBars();
         renderDashboard();
       } catch (e) {
-        document.getElementById('app').innerHTML = '<p style="color:red;">❌ Gagal memuat: ' + e.message + ' <button class="btn-save" onclick="loadAllData()">Coba Lagi</button></p>';
+        document.getElementById('app').innerHTML = `<p style="color:red; text-align:center;">❌ Gagal memuat: ${e.message} <br><small>Pastikan URL/Key benar dan RLS sudah di-setup.</small><br><button class="btn-save" onclick="loadAllData()">Coba Lagi</button></p>`;
       }
     }
 
     function updateToggleStatus() {
       const statusEl = document.getElementById('toggleStatus');
-      if (autoRotateEnabled) {
-        statusEl.textContent = 'AKTIF';
-        statusEl.className = 'toggle-status status-on';
-      } else {
-        statusEl.textContent = 'NONAKTIF';
-        statusEl.className = 'toggle-status status-off';
-      }
+      statusEl.textContent = autoRotateEnabled ? 'AKTIF' : 'NONAKTIF';
+      statusEl.className = `toggle-status ${autoRotateEnabled ? 'status-on' : 'status-off'}`;
     }
 
+    // Toggle Auto-Rotate
     window.toggleAutoRotate = async function() {
       const newValue = document.getElementById('autoRotateToggle').checked;
       
@@ -150,30 +124,14 @@
       }
 
       try {
-        const gistRes = await fetch(`https://api.github.com/gists/${cfg.gistId}`, { 
-          headers: { 'Authorization': 'token ' + cfg.token } 
-        });
-        if (!gistRes.ok) throw new Error('HTTP ' + gistRes.status);
-        const gistData = await gistRes.json();
-        const config = JSON.parse(gistData.files['config.json'].content);
+        const { error } = await supabaseClient
+          .from('global_config')
+          .upsert({ key: 'auto_rotate_enabled', value: newValue.toString() });
         
-        config.auto_rotate_enabled = newValue;
-        
-        const updateRes = await fetch(`https://api.github.com/gists/${cfg.gistId}`, {
-          method: 'PATCH',
-          headers: { 'Authorization': 'token ' + cfg.token, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            files: { 
-              'config.json': { content: JSON.stringify(config, null, 2) }
-            } 
-          })
-        });
-        
-        if (!updateRes.ok) throw new Error('HTTP ' + updateRes.status);
+        if (error) throw error;
         
         autoRotateEnabled = newValue;
         updateToggleStatus();
-        
         alert(`✅ Auto-rotate berhasil ${newValue ? 'DIAKTIFKAN' : 'DINONAKTIFKAN'}`);
       } catch(e) { 
         alert('❌ Gagal mengubah status: ' + e.message);
@@ -181,134 +139,87 @@
       }
     };
 
-    function formatRupiah(angka) {
-      if (!angka && angka !== 0) return 'Belum ada data';
-      return 'Rp ' + parseInt(angka).toLocaleString('id-ID');
-    }
-
-    function renderHealthBars() {
-      if (Object.keys(providerLimits).length === 0) {
-        document.getElementById('healthPanel').style.display = 'none';
-        return;
-      }
-      document.getElementById('healthPanel').style.display = 'block';
-      let html = '';
-
-      for (const provider in providerLimits) {
-        const limitCfg = providerLimits[provider];
-        let totalBal = 0;
-
-        for (const store in saldoData) {
-          if (saldoData[store] && saldoData[store][provider]) {
-            totalBal += saldoData[store][provider].balance || 0;
-          }
-        }
-
-        const usagePct = Math.min(100, (totalBal / limitCfg.max_limit) * 100);
-        let barColor = '#10b981';
-        if (usagePct >= limitCfg.safe_pct) barColor = '#f59e0b';
-        if (usagePct >= limitCfg.trigger_pct) barColor = '#ef4444';
-
-        html += `
-          <div style="margin-bottom:15px;">
-            <div style="display:flex; justify-content:space-between; font-weight:bold; margin-bottom:5px;">
-              <span>${provider}</span>
-              <span style="color:${barColor}">${usagePct.toFixed(1)}% (Rp ${(totalBal/1000000000).toFixed(2)}M / Rp ${(limitCfg.max_limit/1000000000).toFixed(1)}M)</span>
-            </div>
-            <div style="background:#e2e8f0; border-radius:99px; height:12px; overflow:hidden;">
-              <div style="background:${barColor}; width:${usagePct}%; height:100%; transition:width 0.5s;"></div>
-            </div>
-            <small style="color:#666;">Trigger rotasi di ${limitCfg.trigger_pct}%. Target aman: ${limitCfg.safe_pct}%. Backup: ${limitCfg.backup_script}</small>
-          </div>
-        `;
-      }
-      document.getElementById('healthBars').innerHTML = html;
-    }
-
+    // Render Tampilan Dashboard
     function renderDashboard() {
       if (Object.keys(stores).length === 0) {
-        document.getElementById('app').innerHTML = '<p>Belum ada toko.</p>';
+        document.getElementById('app').innerHTML = '<p style="text-align:center; padding: 20px;">Belum ada data toko di database.</p>';
         return;
       }
       
-      let html = '<table><tr><th>Toko</th><th>Script Aktif</th><th>Saldo Real-time</th><th>Ganti Manual</th></tr>';
+      let html = '<table><tr><th style="width: 15%;">ID Toko</th><th style="width: 25%;">Nama Toko</th><th style="width: 25%;">Script Aktif</th><th style="width: 35%;">Ganti Manual</th></tr>';
       
       Object.keys(stores).forEach(key => {
         const s = stores[key];
         const activeScript = s.script_options[s.active_index];
         
-        const tokoSaldo = saldoData[key] || {};
-        const saldoFlyer = formatRupiah(tokoSaldo['QrisFlyer'] ? tokoSaldo['QrisFlyer'].balance : null);
-        const saldoHoki = formatRupiah(tokoSaldo['QRishoki'] ? tokoSaldo['QRishoki'].balance : null);
-        const saldoRaffles = formatRupiah(tokoSaldo['RafflesPay'] ? tokoSaldo['RafflesPay'].balance : null);
+        const optionsHtml = s.script_options.map((o, i) => 
+          `<option value="${i}" ${i === s.active_index ? 'selected' : ''}>${o.name}</option>`
+        ).join('');
 
         html += `<tr>
-          <td><b>${s.name}</b><br><small style="color:#888;">${key}</small></td>
-          <td><span class="status-dot"></span>${activeScript ? activeScript.name : '—'}</td>
+          <td><b>${key}</b></td>
+          <td>${s.name}</td>
           <td>
-            <div class="saldo-box" style="border-color: #ef4444; color: #b91c1c;">Flyer: ${saldoFlyer}</div>
-            <div class="saldo-box" style="border-color: #f59e0b; color: #b45309;">Hoki: ${saldoHoki}</div>
-            <div class="saldo-box" style="border-color: #3b82f6; color: #1d4ed8;">Raffles: ${saldoRaffles}</div>
+            <span class="status-dot"></span>
+            <b>${activeScript ? activeScript.name : 'Tidak ada'}</b>
           </td>
           <td>
-            <select id="sel_${key}" style="padding:6px; margin-bottom:5px; width:100%;">
-              ${s.script_options.map((o, i) => `<option value="${i}" ${i === s.active_index ? 'selected' : ''}>${o.name}</option>`).join('')}
+            <select id="sel_${key}">
+              ${optionsHtml}
             </select>
-            <button class="btn-save" onclick="simpan('${key}')" style="width:100%;">💾 Simpan</button>
-            <span id="st_${key}" style="font-size:12px;"></span>
+            <button class="btn-save" id="btn_${key}" onclick="simpan('${key}')" style="width:100%;">💾 Simpan Perubahan</button>
+            <span id="st_${key}" style="font-size:12px; margin-left: 5px;"></span>
           </td>
         </tr>`;
       });
       
       html += '</table>';
-      html += '<p style="text-align:center; color:#666; font-size:12px;">💡 Saldo diupdate otomatis oleh Bot Telegram. Refresh halaman untuk data terbaru.</p>';
+      html += '<p style="text-align:center; color:#666; font-size:12px; margin-top: 20px;">💡 Perubahan akan langsung disimpan ke database Supabase dan dicatat di log.</p>';
       document.getElementById('app').innerHTML = html;
     }
 
+    // Fungsi Simpan Perubahan ke Supabase
     window.simpan = async function(key) {
-      const newIdx = document.getElementById('sel_' + key).value;
+      const newIdx = parseInt(document.getElementById('sel_' + key).value);
       const st = document.getElementById('st_' + key);
+      const btn = document.getElementById('btn_' + key);
+      
       st.textContent = ' ⏳';
+      btn.disabled = true; // Mencegah double-click
       
       try {
-        const gistRes = await fetch('https://api.github.com/gists/' + cfg.gistId, { 
-          headers: { 'Authorization': 'token ' + cfg.token } 
-        });
-        if (!gistRes.ok) throw new Error('HTTP ' + gistRes.status);
-        const gistData = await gistRes.json();
-        const config = JSON.parse(gistData.files['config.json'].content);
-        
-        let logs = [];
-        if (gistData.files['log.json']) {
-          try { logs = JSON.parse(gistData.files['log.json'].content || '[]'); } catch(e) {}
-        }
-        
-        config.stores[key].active_index = parseInt(newIdx);
-        logs.push({ 
-          timestamp: new Date().toISOString(), 
-          store: key, 
-          action: 'Ubah manual ke ' + config.stores[key].script_options[newIdx].name 
-        });
-        
-        const updateRes = await fetch('https://api.github.com/gists/' + cfg.gistId, {
-          method: 'PATCH',
-          headers: { 'Authorization': 'token ' + cfg.token, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            files: { 
-              'config.json': { content: JSON.stringify(config, null, 2) }, 
-              'log.json': { content: JSON.stringify(logs, null, 2) } 
-            } 
-          })
-        });
-        
-        if (!updateRes.ok) throw new Error('HTTP ' + updateRes.status);
-        stores = config.stores;
+        const activeName = stores[key].script_options[newIdx].name;
+
+        // A. Update tabel stores
+        const { error: err1 } = await supabaseClient
+          .from('stores')
+          .update({ active_index: newIdx })
+          .eq('id', key);
+        if (err1) throw err1;
+
+        // B. Catat ke tabel logs
+        const { error: err2 } = await supabaseClient
+          .from('logs')
+          .insert({ 
+            store_id: key, 
+            action: `Ubah manual script ke: ${activeName}` 
+          });
+        if (err2) throw err2;
+
+        // C. Update state lokal & re-render
+        stores[key].active_index = newIdx;
         renderDashboard();
+        
         st.textContent = ' ✅';
-        setTimeout(() => { if (document.getElementById('st_' + key)) document.getElementById('st_' + key).textContent = ''; }, 3000);
+        setTimeout(() => { 
+          const el = document.getElementById('st_' + key);
+          if (el) el.textContent = ''; 
+        }, 3000);
       } catch(e) { 
         st.textContent = ' ❌'; 
-        alert('Error: ' + e.message); 
+        alert('Error saat menyimpan: ' + e.message); 
+      } finally {
+        btn.disabled = false;
       }
     };
 
