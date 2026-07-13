@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Editor QRIS</title>
-  <!-- Supabase JS Client -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     body { font-family: 'Segoe UI', Arial, sans-serif; padding: 20px; background: #f5f5f5; margin: 0; }
@@ -20,36 +19,55 @@
     .btn-save:disabled { background: #9ca3af; cursor: not-allowed; }
     .btn-del { background: #ef4444; color: white; }
     .btn-del:hover { background: #dc2626; }
+    .btn-disable { background: #6b7280; color: white; }
+    .btn-disable:hover { background: #4b5563; }
     .btn-logout { background: #e94560; color: white; float: right; }
-    .toolbar { margin-bottom: 15px; overflow: hidden; }
-    .toolbar a { margin-left: 10px; text-decoration: none; color: #1e293b; font-weight: bold; }
+    .toolbar { margin-bottom: 15px; overflow: hidden; display: flex; justify-content: space-between; align-items: center; }
+    .toolbar-left { display: flex; align-items: center; gap: 15px; }
+    .toolbar a { text-decoration: none; color: #1e293b; font-weight: bold; }
     .status { font-size: 13px; margin-left: 8px; font-weight: bold; }
     .opt-item { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; padding: 12px; margin: 10px 0; }
+    .opt-item.disabled { background: #fef2f2; border-color: #fca5a5; }
     .opt-item input { width: 100%; padding: 8px; margin-bottom: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; box-sizing: border-box; font-weight: bold; }
+    .add-store-form { background: #e0f2fe; border: 1px solid #7dd3fc; padding: 15px; border-radius: 8px; margin-bottom: 20px; display: none; }
+    .add-store-form input { padding: 8px; border: 1px solid #ccc; border-radius: 4px; margin-right: 10px; width: 200px; }
+    .no-qris-badge { background: #fef3c7; color: #92400e; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; margin-left: 8px; }
   </style>
 </head>
 <body>
   <script>if (!sessionStorage.getItem('qrlogin')) location.href = 'login.html';</script>
 
   <div class="toolbar">
+    <div class="toolbar-left">
+      <h2 style="margin: 0;">✏️ Editor Script QRIS</h2>
+      <a href="index.html">📊 Kembali ke Dashboard</a>
+    </div>
     <button class="btn-logout" onclick="logout()">🚪 Logout</button>
-    <h2 style="display:inline-block;">✏️ Editor Script QRIS</h2>
-    <a href="index.html">📊 Kembali ke Dashboard</a>
+  </div>
+
+  <div class="add-store-form" id="addStoreForm">
+    <h4 style="margin-top: 0; color: #0369a1;">➕ Tambah Toko Baru</h4>
+    <input type="text" id="newStoreId" placeholder="ID Toko (misal: NEW, tanpa spasi)" style="text-transform: uppercase;">
+    <input type="text" id="newStoreName" placeholder="Nama Toko (misal: Toko Baru Cabang X)">
+    <button class="btn-save" onclick="confirmAddStore()">💾 Simpan Toko</button>
+    <button class="btn-del" onclick="toggleAddStore()">Batal</button>
+  </div>
+
+  <div style="margin-bottom: 20px;">
+    <button class="btn-add" onclick="toggleAddStore()">➕ Tambah Toko Baru</button>
   </div>
 
   <div id="content">⏳ Memuat data dari Supabase...</div>
 
   <script>
-    // 🌟 INJEKSI KREDENSIAL SUPABASE DI SINI (Sama dengan index.html) 🌟
-    const SUPABASE_URL = 'https://tktvwdejrcrsyzilizpm.supabase.co'; 
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRrdHZ3ZGVqcmNyc3l6aWxpenBtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM5NTQzMzAsImV4cCI6MjA5OTUzMDMzMH0.Ml9Iu7OsaVezLikiDX2SdMF3nRtttVU5F9brcOFnAL0';            
+    const SUPABASE_URL = 'https://YOUR_PROJECT_ID.supabase.co'; 
+    const SUPABASE_ANON_KEY = 'YOUR_ANON_PUBLIC_KEY';            
 
     let supabaseClient = null;
     let currentStores = {};
 
-    // Validasi awal
     if (SUPABASE_URL.includes('YOUR_PROJECT_ID') || SUPABASE_ANON_KEY.includes('YOUR_ANON')) {
-      document.getElementById('content').innerHTML = '<p style="color:red; text-align:center; padding: 20px;">⚠️ ERROR: Silakan edit file <b>editor.html</b> dan masukkan SUPABASE_URL serta SUPABASE_ANON_KEY Anda terlebih dahulu di bagian atas script.</p>';
+      document.getElementById('content').innerHTML = '<p style="color:red; text-align:center; padding: 20px;">⚠️ ERROR: Silakan edit file <b>editor.html</b> dan masukkan SUPABASE_URL serta SUPABASE_ANON_KEY Anda.</p>';
     } else {
       supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
       loadFromSupabase();
@@ -81,17 +99,22 @@
           <h3>${escapeHtml(store.name)} <small style="color:#888; font-weight:normal;">(ID: ${escapeHtml(key)})</small></h3>`;
         
         store.script_options.forEach((opt, i) => {
+          const isNoQris = opt.name === 'TIDAK ADA QRIS';
+          const itemClass = isNoQris ? 'opt-item disabled' : 'opt-item';
+          
           html += `
-            <div class="opt-item">
-              <input value="${escapeHtml(opt.name)}" id="oname-${key}-${i}" placeholder="Nama Script (misal: QRIS HOKI)">
-              <textarea id="ocode-${key}-${i}" placeholder="Tempel kode JavaScript di sini...">${escapeHtml(opt.code || '')}</textarea>
+            <div class="${itemClass}">
+              <input value="${escapeHtml(opt.name)}" id="oname-${key}-${i}" placeholder="Nama Script (misal: QRIS HOKI)" ${isNoQris ? 'readonly style="background:#fee2e2;"' : ''}>
+              <textarea id="ocode-${key}-${i}" placeholder="Tempel kode JavaScript di sini..." ${isNoQris ? 'readonly style="background:#fee2e2;"' : ''}>${escapeHtml(opt.code || '')}</textarea>
               <button class="btn-del" onclick="deleteOpt('${key}', ${i})">🗑 Hapus Script Ini</button>
+              ${isNoQris ? '<span class="no-qris-badge">⚠️ Opsi Nonaktif</span>' : ''}
             </div>`;
         });
         
         html += `
           <div style="margin-top: 15px; border-top: 1px solid #eee; padding-top: 15px;">
             <button class="btn-add" onclick="addOpt('${key}')">➕ Tambah Script Baru</button>
+            <button class="btn-disable" onclick="addNoQrisOpt('${key}')">🚫 Tambah Opsi "TIDAK ADA QRIS"</button>
             <button class="btn-save" id="btn-save-${key}" onclick="saveStore('${key}')">💾 Simpan Perubahan Toko Ini</button>
             <span class="status" id="st-${key}"></span>
           </div>
@@ -100,10 +123,108 @@
       document.getElementById('content').innerHTML = html || '<p style="text-align:center;">Tidak ada data toko.</p>';
     }
 
+    window.toggleAddStore = function() {
+      const form = document.getElementById('addStoreForm');
+      form.style.display = form.style.display === 'block' ? 'none' : 'block';
+      if (form.style.display === 'block') {
+        document.getElementById('newStoreId').focus();
+      }
+    };
+
+    window.confirmAddStore = async function() {
+      const idInput = document.getElementById('newStoreId');
+      const nameInput = document.getElementById('newStoreName');
+      
+      const newId = idInput.value.trim().toUpperCase().replace(/\s+/g, '_');
+      const newName = nameInput.value.trim();
+
+      if (!newId || !newName) {
+        alert('ID Toko dan Nama Toko tidak boleh kosong!');
+        return;
+      }
+
+      if (currentStores[newId]) {
+        alert('ID Toko sudah ada! Gunakan ID yang berbeda.');
+        return;
+      }
+
+      const btn = event.target;
+      btn.disabled = true;
+      btn.textContent = '⏳ Menyimpan...';
+
+      try {
+        // Otomatis tambahkan "TIDAK ADA QRIS" sebagai opsi pertama
+        const defaultScripts = [
+          { name: "TIDAK ADA QRIS", code: "" },
+          { name: "QRIS HOKI", code: "" },
+          { name: "QRIS FLYER", code: "" },
+          { name: "QRIS RPAY", code: "" }
+        ];
+
+        const { error } = await supabaseClient
+          .from('stores')
+          .insert({ 
+            id: newId, 
+            name: newName, 
+            active_index: 1, // Default ke QRIS HOKI (index 1)
+            script_options: defaultScripts 
+          });
+
+        if (error) throw error;
+
+        alert(`✅ Toko "${newName}" berhasil ditambahkan!`);
+        idInput.value = '';
+        nameInput.value = '';
+        toggleAddStore();
+        loadFromSupabase();
+      } catch(e) {
+        alert('❌ Gagal menambah toko: ' + e.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '💾 Simpan Toko';
+      }
+    };
+
+    // --- FITUR BARU: TAMBAH OPSI "TIDAK ADA QRIS" ---
+    window.addNoQrisOpt = async function(key) {
+      // Cek apakah sudah ada opsi "TIDAK ADA QRIS"
+      const existingIndex = currentStores[key].script_options.findIndex(opt => opt.name === 'TIDAK ADA QRIS');
+      if (existingIndex !== -1) {
+        alert('Opsi "TIDAK ADA QRIS" sudah ada di toko ini!');
+        return;
+      }
+
+      if (!confirm('Tambahkan opsi "TIDAK ADA QRIS" ke toko ini?')) return;
+
+      // Tambahkan di awal array (index 0)
+      currentStores[key].script_options.unshift({ name: 'TIDAK ADA QRIS', code: '' });
+      
+      // Geser active_index karena ada penambahan di index 0
+      currentStores[key].active_index += 1;
+
+      // Simpan ke database
+      try {
+        const { error } = await supabaseClient
+          .from('stores')
+          .update({ 
+            script_options: currentStores[key].script_options,
+            active_index: currentStores[key].active_index
+          })
+          .eq('id', key);
+
+        if (error) throw error;
+
+        alert('✅ Opsi "TIDAK ADA QRIS" berhasil ditambahkan!');
+        loadFromSupabase();
+      } catch(e) {
+        alert('❌ Gagal menambah opsi: ' + e.message);
+      }
+    };
+    // -------------------------------------------------
+
     window.addOpt = function(key) {
       currentStores[key].script_options.push({ name: 'Script Baru', code: '' });
       renderEditor(currentStores);
-      // Scroll ke bawah agar user melihat input baru
       setTimeout(() => {
         const inputs = document.querySelectorAll(`[id^="oname-${key}-"]`);
         if (inputs.length > 0) inputs[inputs.length - 1].focus();
@@ -120,8 +241,10 @@
       
       currentStores[key].script_options.splice(idx, 1);
       
-      // Jika index aktif terhapus atau melampaui batas, sesuaikan ke index terakhir
-      if (currentStores[key].active_index >= currentStores[key].script_options.length) {
+      // Sesuaikan active_index
+      if (idx < currentStores[key].active_index) {
+        currentStores[key].active_index -= 1;
+      } else if (currentStores[key].active_index >= currentStores[key].script_options.length) {
         currentStores[key].active_index = currentStores[key].script_options.length - 1;
       }
       renderEditor(currentStores);
@@ -132,10 +255,9 @@
       const btn = document.getElementById('btn-save-' + key);
       
       st.textContent = ' ⏳ Menyimpan...';
-      btn.disabled = true; // Mencegah double-click
+      btn.disabled = true;
 
       try {
-        // 1. Ambil data terbaru dari input field ke dalam object local
         currentStores[key].script_options.forEach((opt, i) => {
           const nameEl = document.getElementById(`oname-${key}-${i}`);
           const codeEl = document.getElementById(`ocode-${key}-${i}`);
@@ -146,23 +268,19 @@
         const updatedOptions = currentStores[key].script_options;
         const activeScriptName = updatedOptions[currentStores[key].active_index]?.name || 'Unknown';
 
-        // 2. Update kolom script_options di tabel stores (Supabase menangani JSONB dengan baik)
         const { error: err1 } = await supabaseClient
           .from('stores')
           .update({ script_options: updatedOptions })
           .eq('id', key);
         if (err1) throw err1;
 
-        // 3. Catat ke tabel logs
         const { error: err2 } = await supabaseClient
           .from('logs')
           .insert({ 
             store_id: key, 
             action: `Edit script: ${activeScriptName}` 
           });
-        if (err2) {
-          console.warn('Gagal mencatat log, tapi data script berhasil disimpan:', err2);
-        }
+        if (err2) console.warn('Gagal mencatat log:', err2);
 
         st.textContent = ' ✅ Tersimpan!';
         setTimeout(() => { 
