@@ -9,8 +9,8 @@
     body { font-family: 'Segoe UI', Arial, sans-serif; padding: 20px; background: #f5f5f5; margin: 0; }
     h2 { color: #333; }
     .store { background: white; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border-radius: 8px; }
-    .store h3 { margin-top: 0; color: #1e293b; border-bottom: 2px solid #e94560; padding-bottom: 8px; }
-    textarea { width: 100%; height: 120px; font-family: 'Courier New', monospace; font-size: 13px; padding: 8px; margin: 8px 0; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; resize: vertical; }
+    .store h3 { margin-top: 0; color: #1e293b; border-bottom: 2px solid #e94560; padding-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
+    textarea { width: 100%; height: 150px; font-family: 'Courier New', monospace; font-size: 13px; padding: 8px; margin: 8px 0; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; resize: vertical; }
     button { padding: 8px 14px; cursor: pointer; border: none; border-radius: 4px; font-weight: bold; margin-right: 5px; transition: background 0.2s; }
     .btn-add { background: #3b82f6; color: white; }
     .btn-add:hover { background: #2563eb; }
@@ -19,19 +19,30 @@
     .btn-save:disabled { background: #9ca3af; cursor: not-allowed; }
     .btn-del { background: #ef4444; color: white; }
     .btn-del:hover { background: #dc2626; }
-    .btn-disable { background: #6b7280; color: white; }
-    .btn-disable:hover { background: #4b5563; }
+    .btn-del-store { background: #dc2626; color: white; font-size: 12px; padding: 4px 10px; }
+    .btn-del-store:hover { background: #991b1b; }
     .btn-logout { background: #e94560; color: white; float: right; }
     .toolbar { margin-bottom: 15px; overflow: hidden; display: flex; justify-content: space-between; align-items: center; }
     .toolbar-left { display: flex; align-items: center; gap: 15px; }
     .toolbar a { text-decoration: none; color: #1e293b; font-weight: bold; }
     .status { font-size: 13px; margin-left: 8px; font-weight: bold; }
-    .opt-item { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; padding: 12px; margin: 10px 0; }
+    
+    .opt-item { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; margin: 10px 0; overflow: hidden; transition: all 0.3s ease; }
     .opt-item.disabled { background: #fef2f2; border-color: #fca5a5; }
-    .opt-item input { width: 100%; padding: 8px; margin-bottom: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; box-sizing: border-box; font-weight: bold; }
+    .opt-header { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; cursor: pointer; background: #f3f4f6; border-bottom: 1px solid #e5e7eb; user-select: none; }
+    .opt-header:hover { background: #e5e7eb; }
+    .opt-header-left { display: flex; align-items: center; gap: 10px; flex: 1; }
+    .opt-header-left input { flex: 1; padding: 6px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; font-weight: bold; background: white; }
+    .opt-header-left input[readonly] { background: #fee2e2; cursor: not-allowed; }
+    .toggle-icon { font-size: 16px; color: #6b7280; transition: transform 0.3s ease; }
+    .opt-item.expanded .toggle-icon { transform: rotate(180deg); }
+    .opt-body { padding: 12px; display: none; }
+    .opt-item.expanded .opt-body { display: block; }
+    .opt-preview { padding: 8px 12px; font-family: 'Courier New', monospace; font-size: 12px; color: #6b7280; background: #fafafa; border-top: 1px dashed #e5e7eb; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .no-qris-badge { background: #fef3c7; color: #92400e; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; margin-left: 8px; }
+    
     .add-store-form { background: #e0f2fe; border: 1px solid #7dd3fc; padding: 15px; border-radius: 8px; margin-bottom: 20px; display: none; }
     .add-store-form input { padding: 8px; border: 1px solid #ccc; border-radius: 4px; margin-right: 10px; width: 200px; }
-    .no-qris-badge { background: #fef3c7; color: #92400e; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; margin-left: 8px; }
   </style>
 </head>
 <body>
@@ -65,6 +76,7 @@
 
     let supabaseClient = null;
     let currentStores = {};
+    let expandedItems = new Set();
 
     if (SUPABASE_URL.includes('YOUR_PROJECT_ID') || SUPABASE_ANON_KEY.includes('YOUR_ANON')) {
       document.getElementById('content').innerHTML = '<p style="color:red; text-align:center; padding: 20px;">⚠️ ERROR: Silakan edit file <b>editor.html</b> dan masukkan SUPABASE_URL serta SUPABASE_ANON_KEY Anda.</p>';
@@ -73,6 +85,7 @@
       loadFromSupabase();
     }
 
+    // --- FUNGSI UTAMA: LOAD DATA + AUTO TAMBAH "TIDAK ADA QRIS" ---
     async function loadFromSupabase() {
       document.getElementById('content').innerHTML = '⏳ Memuat data dari Supabase...';
       try {
@@ -82,39 +95,102 @@
         currentStores = {};
         data.forEach(s => { currentStores[s.id] = s; });
         
+        // 🔥 AUTO-FIX: Pastikan semua toko punya opsi "TIDAK ADA QRIS"
+        await ensureNoQrisOptionForAllStores();
+        
         renderEditor(currentStores);
       } catch(e) {
         document.getElementById('content').innerHTML = `<p style="color:red; text-align:center;">❌ Gagal memuat: ${e.message} <br><button class="btn-save" onclick="loadFromSupabase()">Coba Lagi</button></p>`;
       }
     }
 
+    // 🔥 AUTO TAMBAH "TIDAK ADA QRIS" KE SEMUA TOKO YANG BELUM PUNYA
+    async function ensureNoQrisOptionForAllStores() {
+      let updated = false;
+      
+      for (const key in currentStores) {
+        const store = currentStores[key];
+        const hasNoQris = store.script_options.some(opt => opt.name === 'TIDAK ADA QRIS');
+        
+        if (!hasNoQris) {
+          // Tambahkan "TIDAK ADA QRIS" di index 0
+          store.script_options.unshift({ name: 'TIDAK ADA QRIS', code: '' });
+          // Geser active_index karena ada penambahan di index 0
+          store.active_index += 1;
+          
+          // Simpan ke database
+          try {
+            const { error } = await supabaseClient
+              .from('stores')
+              .update({ 
+                script_options: store.script_options,
+                active_index: store.active_index
+              })
+              .eq('id', key);
+            
+            if (error) {
+              console.warn(`Gagal update toko ${key}:`, error);
+            } else {
+              updated = true;
+              console.log(`✅ Toko ${key} otomatis ditambahkan opsi "TIDAK ADA QRIS"`);
+            }
+          } catch(e) {
+            console.warn(`Error update toko ${key}:`, e);
+          }
+        }
+      }
+      
+      if (updated) {
+        console.log('✅ Semua toko sekarang memiliki opsi "TIDAK ADA QRIS"');
+      }
+    }
+    // ----------------------------------------------------------------
+
     function escapeHtml(str) {
       return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function getPreview(code) {
+      if (!code) return '(Kode kosong)';
+      const clean = code.replace(/\s+/g, ' ').trim();
+      return clean.length > 80 ? clean.substring(0, 80) + '...' : clean;
     }
 
     function renderEditor(stores) {
       let html = '';
       Object.entries(stores).forEach(([key, store]) => {
         html += `<div class="store">
-          <h3>${escapeHtml(store.name)} <small style="color:#888; font-weight:normal;">(ID: ${escapeHtml(key)})</small></h3>`;
+          <h3>
+            <span>${escapeHtml(store.name)} <small style="color:#888; font-weight:normal;">(ID: ${escapeHtml(key)})</small></span>
+            <button class="btn-del-store" onclick="deleteStore('${key}')">🗑 Hapus Toko</button>
+          </h3>`;
         
         store.script_options.forEach((opt, i) => {
           const isNoQris = opt.name === 'TIDAK ADA QRIS';
           const itemClass = isNoQris ? 'opt-item disabled' : 'opt-item';
+          const itemId = `opt-${key}-${i}`;
+          const isExpanded = expandedItems.has(itemId);
           
           html += `
-            <div class="${itemClass}">
-              <input value="${escapeHtml(opt.name)}" id="oname-${key}-${i}" placeholder="Nama Script (misal: QRIS HOKI)" ${isNoQris ? 'readonly style="background:#fee2e2;"' : ''}>
-              <textarea id="ocode-${key}-${i}" placeholder="Tempel kode JavaScript di sini..." ${isNoQris ? 'readonly style="background:#fee2e2;"' : ''}>${escapeHtml(opt.code || '')}</textarea>
-              <button class="btn-del" onclick="deleteOpt('${key}', ${i})">🗑 Hapus Script Ini</button>
-              ${isNoQris ? '<span class="no-qris-badge">⚠️ Opsi Nonaktif</span>' : ''}
+            <div class="${itemClass} ${isExpanded ? 'expanded' : ''}" id="${itemId}">
+              <div class="opt-header" onclick="toggleOpt('${itemId}')">
+                <div class="opt-header-left">
+                  <input value="${escapeHtml(opt.name)}" id="oname-${key}-${i}" placeholder="Nama Script" ${isNoQris ? 'readonly' : ''} onclick="event.stopPropagation()">
+                  ${isNoQris ? '<span class="no-qris-badge">⚠️ Nonaktif</span>' : ''}
+                </div>
+                <span class="toggle-icon">▼</span>
+              </div>
+              ${!isExpanded ? `<div class="opt-preview">📄 ${escapeHtml(getPreview(opt.code))}</div>` : ''}
+              <div class="opt-body">
+                <textarea id="ocode-${key}-${i}" placeholder="Tempel kode JavaScript di sini..." ${isNoQris ? 'readonly' : ''}>${escapeHtml(opt.code || '')}</textarea>
+                ${!isNoQris ? `<button class="btn-del" onclick="deleteOpt('${key}', ${i})">🗑 Hapus Script Ini</button>` : ''}
+              </div>
             </div>`;
         });
         
         html += `
           <div style="margin-top: 15px; border-top: 1px solid #eee; padding-top: 15px;">
             <button class="btn-add" onclick="addOpt('${key}')">➕ Tambah Script Baru</button>
-            <button class="btn-disable" onclick="addNoQrisOpt('${key}')">🚫 Tambah Opsi "TIDAK ADA QRIS"</button>
             <button class="btn-save" id="btn-save-${key}" onclick="saveStore('${key}')">💾 Simpan Perubahan Toko Ini</button>
             <span class="status" id="st-${key}"></span>
           </div>
@@ -122,6 +198,18 @@
       });
       document.getElementById('content').innerHTML = html || '<p style="text-align:center;">Tidak ada data toko.</p>';
     }
+
+    window.toggleOpt = function(itemId) {
+      const el = document.getElementById(itemId);
+      if (!el) return;
+      
+      if (expandedItems.has(itemId)) {
+        expandedItems.delete(itemId);
+      } else {
+        expandedItems.add(itemId);
+      }
+      renderEditor(currentStores);
+    };
 
     window.toggleAddStore = function() {
       const form = document.getElementById('addStoreForm');
@@ -153,7 +241,7 @@
       btn.textContent = '⏳ Menyimpan...';
 
       try {
-        // Otomatis tambahkan "TIDAK ADA QRIS" sebagai opsi pertama
+        // ✅ Otomatis sudah termasuk "TIDAK ADA QRIS" di index 0
         const defaultScripts = [
           { name: "TIDAK ADA QRIS", code: "" },
           { name: "QRIS HOKI", code: "" },
@@ -185,49 +273,46 @@
       }
     };
 
-    // --- FITUR BARU: TAMBAH OPSI "TIDAK ADA QRIS" ---
-    window.addNoQrisOpt = async function(key) {
-      // Cek apakah sudah ada opsi "TIDAK ADA QRIS"
-      const existingIndex = currentStores[key].script_options.findIndex(opt => opt.name === 'TIDAK ADA QRIS');
-      if (existingIndex !== -1) {
-        alert('Opsi "TIDAK ADA QRIS" sudah ada di toko ini!');
+    window.deleteStore = async function(key) {
+      const storeName = currentStores[key]?.name || key;
+      if (!confirm(`⚠️ PERINGATAN!\n\nAnda akan menghapus toko "${storeName}" (ID: ${key}) beserta SEMUA script-nya.\n\nTindakan ini TIDAK BISA dibatalkan!\n\nLanjutkan?`)) return;
+      
+      const typedId = prompt(`Ketik ID toko "${key}" untuk konfirmasi:`);
+      if (typedId !== key) {
+        alert('ID tidak cocok. Penghapusan dibatalkan.');
         return;
       }
 
-      if (!confirm('Tambahkan opsi "TIDAK ADA QRIS" ke toko ini?')) return;
-
-      // Tambahkan di awal array (index 0)
-      currentStores[key].script_options.unshift({ name: 'TIDAK ADA QRIS', code: '' });
-      
-      // Geser active_index karena ada penambahan di index 0
-      currentStores[key].active_index += 1;
-
-      // Simpan ke database
       try {
         const { error } = await supabaseClient
           .from('stores')
-          .update({ 
-            script_options: currentStores[key].script_options,
-            active_index: currentStores[key].active_index
-          })
+          .delete()
           .eq('id', key);
 
         if (error) throw error;
 
-        alert('✅ Opsi "TIDAK ADA QRIS" berhasil ditambahkan!');
+        await supabaseClient.from('logs').insert({ 
+          store_id: key, 
+          action: `Hapus toko: ${storeName}` 
+        }).catch(e => console.warn('Gagal mencatat log:', e));
+
+        alert(`✅ Toko "${storeName}" berhasil dihapus!`);
         loadFromSupabase();
       } catch(e) {
-        alert('❌ Gagal menambah opsi: ' + e.message);
+        alert('❌ Gagal menghapus toko: ' + e.message);
       }
     };
-    // -------------------------------------------------
 
     window.addOpt = function(key) {
       currentStores[key].script_options.push({ name: 'Script Baru', code: '' });
       renderEditor(currentStores);
       setTimeout(() => {
         const inputs = document.querySelectorAll(`[id^="oname-${key}-"]`);
-        if (inputs.length > 0) inputs[inputs.length - 1].focus();
+        if (inputs.length > 0) {
+          const lastInput = inputs[inputs.length - 1];
+          lastInput.focus();
+          lastInput.select();
+        }
       }, 100);
     };
 
@@ -241,7 +326,6 @@
       
       currentStores[key].script_options.splice(idx, 1);
       
-      // Sesuaikan active_index
       if (idx < currentStores[key].active_index) {
         currentStores[key].active_index -= 1;
       } else if (currentStores[key].active_index >= currentStores[key].script_options.length) {
