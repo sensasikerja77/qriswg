@@ -3,9 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Halaman Login Admin QRIS">
+    <meta name="theme-color" content="#0f172a">
     <title>Login QRIS Admin</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
+        :root {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --accent: #e94560;
+            --accent-hover: #c23152;
+            --text-primary: #ffffff;
+            --text-secondary: #94a3b8;
+            --border: #334155;
+            --error-bg: rgba(233, 69, 96, 0.1);
+            --success-bg: rgba(34, 197, 94, 0.1);
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -13,108 +27,169 @@
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
             display: flex;
             justify-content: center;
             align-items: center;
             min-height: 100vh;
-            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+            background-size: 400% 400%;
+            animation: gradientBG 15s ease infinite;
             margin: 0;
             padding: 20px;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        /* Background decoration */
+        .bg-decoration {
+            position: fixed;
+            border-radius: 50%;
+            filter: blur(80px);
+            opacity: 0.15;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .bg-decoration:nth-child(1) {
+            width: 400px;
+            height: 400px;
+            background: var(--accent);
+            top: -100px;
+            right: -100px;
+        }
+
+        .bg-decoration:nth-child(2) {
+            width: 300px;
+            height: 300px;
+            background: #3b82f6;
+            bottom: -50px;
+            left: -50px;
         }
 
         .login-container {
-            background: rgba(30, 41, 59, 0.8);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            padding: 40px 30px;
-            border-radius: 20px;
+            background: rgba(30, 41, 59, 0.85);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            padding: 48px 36px;
+            border-radius: 24px;
             text-align: center;
-            color: white;
+            color: var(--text-primary);
             width: 100%;
-            max-width: 380px;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
-            animation: fadeInUp 0.6s ease-out;
+            max-width: 400px;
+            box-shadow: 
+                0 25px 50px -12px rgba(0, 0, 0, 0.5),
+                0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+            animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+            position: relative;
+            z-index: 1;
         }
 
         @keyframes fadeInUp {
             from {
                 opacity: 0;
-                transform: translateY(30px);
+                transform: translateY(30px) scale(0.95);
             }
             to {
                 opacity: 1;
-                transform: translateY(0);
+                transform: translateY(0) scale(1);
             }
         }
 
-        .logo {
-            font-size: 48px;
-            margin-bottom: 20px;
-            display: block;
-            animation: pulse 2s infinite;
+        .logo-icon {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 24px;
+            background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 36px;
+            box-shadow: 0 10px 30px rgba(233, 69, 96, 0.3);
+            animation: float 3s ease-in-out infinite;
         }
 
-        @keyframes pulse {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.05); }
-            100% { transform: scale(1); }
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
         }
 
         h2 {
-            color: #e94560;
+            color: var(--text-primary);
             margin-bottom: 8px;
-            font-size: 24px;
-            font-weight: 600;
+            font-size: 26px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
         }
 
         .subtitle {
-            color: #94a3b8;
-            margin-bottom: 32px;
+            color: var(--text-secondary);
+            margin-bottom: 36px;
             font-size: 14px;
+            line-height: 1.5;
         }
 
         .input-group {
             position: relative;
-            margin-bottom: 20px;
+            margin-bottom: 24px;
         }
 
-        .input-group i {
+        .input-icon {
             position: absolute;
             left: 16px;
             top: 50%;
             transform: translateY(-50%);
             color: #64748b;
-            font-size: 16px;
-            transition: color 0.3s ease;
-        }
-
-        input {
-            width: 100%;
-            padding: 14px 16px 14px 44px;
-            border: 2px solid #334155;
-            border-radius: 12px;
-            background: rgba(15, 23, 42, 0.8);
-            color: white;
-            font-size: 16px;
-            box-sizing: border-box;
+            font-size: 18px;
             transition: all 0.3s ease;
+            pointer-events: none;
+            z-index: 2;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 16px 48px 16px 48px;
+            border: 2px solid rgba(51, 65, 85, 0.5);
+            border-radius: 14px;
+            background: rgba(15, 23, 42, 0.6);
+            color: var(--text-primary);
+            font-size: 15px;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             outline: none;
+            letter-spacing: 0.5px;
         }
 
-        input:focus {
-            border-color: #e94560;
+        .input-group input:hover {
+            border-color: rgba(233, 69, 96, 0.3);
+            background: rgba(15, 23, 42, 0.8);
+        }
+
+        .input-group input:focus {
+            border-color: var(--accent);
             background: rgba(15, 23, 42, 1);
-            box-shadow: 0 0 0 3px rgba(233, 69, 96, 0.1);
+            box-shadow: 
+                0 0 0 4px rgba(233, 69, 96, 0.1),
+                0 0 20px rgba(233, 69, 96, 0.1);
+            transform: translateY(-1px);
         }
 
-        input:focus + i,
-        .input-group:focus-within i {
-            color: #e94560;
+        .input-group input:focus ~ .input-icon {
+            color: var(--accent);
+            transform: translateY(-50%) scale(1.1);
         }
 
-        input::placeholder {
+        .input-group input::placeholder {
             color: #64748b;
+            font-size: 14px;
         }
 
         .password-toggle {
@@ -124,432 +199,730 @@
             transform: translateY(-50%);
             cursor: pointer;
             color: #64748b;
-            font-size: 16px;
+            font-size: 18px;
             background: none;
             border: none;
-            padding: 0;
-            transition: color 0.3s ease;
+            padding: 8px;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+            z-index: 2;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .password-toggle:hover {
-            color: #e94560;
-        }
-
-        button {
-            width: 100%;
-            padding: 14px;
-            background: linear-gradient(135deg, #e94560 0%, #c23152 100%);
-            color: white;
-            border: none;
-            border-radius: 12px;
-            font-weight: 600;
-            font-size: 16px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            margin-top: 8px;
-            letter-spacing: 0.5px;
-        }
-
-        button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 20px rgba(233, 69, 96, 0.4);
-        }
-
-        button:active {
-            transform: translateY(0);
-        }
-
-        button:disabled {
-            background: #475569;
-            cursor: not-allowed;
-            transform: none;
-            box-shadow: none;
-        }
-
-        .error-message {
+            color: var(--accent);
             background: rgba(233, 69, 96, 0.1);
-            border: 1px solid rgba(233, 69, 96, 0.3);
-            color: #e94560;
-            padding: 12px;
-            border-radius: 8px;
-            margin-top: 16px;
-            display: none;
-            font-size: 14px;
-            animation: shake 0.5s ease-in-out;
         }
 
-        .error-message i {
-            margin-right: 8px;
-        }
-
-        @keyframes shake {
-            0%, 100% { transform: translateX(0); }
-            10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
-            20%, 40%, 60%, 80% { transform: translateX(5px); }
-        }
-
-        .success-message {
-            background: rgba(34, 197, 94, 0.1);
-            border: 1px solid rgba(34, 197, 94, 0.3);
-            color: #22c55e;
-            padding: 12px;
-            border-radius: 8px;
-            margin-top: 16px;
-            display: none;
-            font-size: 14px;
+        .options-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 28px;
+            font-size: 13px;
         }
 
         .remember-me {
             display: flex;
             align-items: center;
-            margin-bottom: 20px;
-            color: #94a3b8;
-            font-size: 14px;
+            gap: 8px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            user-select: none;
         }
 
         .remember-me input[type="checkbox"] {
-            width: auto;
-            margin-right: 8px;
-            accent-color: #e94560;
+            width: 18px;
+            height: 18px;
+            accent-color: var(--accent);
+            cursor: pointer;
+            border-radius: 4px;
         }
 
-        .additional-links {
-            margin-top: 20px;
-            font-size: 13px;
-            color: #94a3b8;
-        }
-
-        .additional-links a {
-            color: #e94560;
+        .forgot-link {
+            color: var(--accent);
             text-decoration: none;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .forgot-link:hover {
+            color: #f0627d;
+            text-decoration: underline;
+            text-underline-offset: 4px;
+        }
+
+        .login-button {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, var(--accent) 0%, var(--accent-hover) 100%);
+            color: white;
+            border: none;
+            border-radius: 14px;
+            font-weight: 600;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            letter-spacing: 0.5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .login-button::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+
+        .login-button:hover:not(:disabled)::before {
+            width: 300px;
+            height: 300px;
+        }
+
+        .login-button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 30px rgba(233, 69, 96, 0.4);
+        }
+
+        .login-button:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        .login-button:disabled {
+            background: #475569;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+            opacity: 0.7;
+        }
+
+        .message-box {
+            padding: 14px 18px;
+            border-radius: 12px;
+            margin-top: 20px;
+            display: none;
+            font-size: 13px;
+            font-weight: 500;
+            animation: slideDown 0.3s ease;
+            align-items: center;
+            gap: 10px;
+            text-align: left;
+        }
+
+        .error-message {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #ef4444;
+        }
+
+        .success-message {
+            background: var(--success-bg);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+            color: #22c55e;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20% { transform: translateX(-8px); }
+            40% { transform: translateX(8px); }
+            60% { transform: translateX(-4px); }
+            80% { transform: translateX(4px); }
+        }
+
+        .shake {
+            animation: shake 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97);
+        }
+
+        .footer-text {
+            margin-top: 24px;
+            color: var(--text-secondary);
+            font-size: 12px;
+        }
+
+        .footer-text a {
+            color: var(--accent);
+            text-decoration: none;
+            font-weight: 500;
             transition: color 0.3s ease;
         }
 
-        .additional-links a:hover {
+        .footer-text a:hover {
             color: #f0627d;
-            text-decoration: underline;
         }
 
+        /* Loading spinner */
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Responsive */
         @media (max-width: 480px) {
             .login-container {
-                padding: 30px 20px;
-                border-radius: 16px;
+                padding: 36px 24px;
+                border-radius: 20px;
+            }
+
+            .logo-icon {
+                width: 64px;
+                height: 64px;
+                font-size: 28px;
             }
 
             h2 {
-                font-size: 20px;
+                font-size: 22px;
             }
 
-            input, button {
+            .input-group input {
+                padding: 14px 44px 14px 44px;
                 font-size: 14px;
-                padding: 12px 16px 12px 40px;
             }
+
+            .options-row {
+                flex-direction: column;
+                gap: 12px;
+                align-items: flex-start;
+            }
+        }
+
+        /* Accessibility */
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+
+        *:focus-visible {
+            outline: 2px solid var(--accent);
+            outline-offset: 2px;
         }
     </style>
 </head>
 <body>
-    <div class="login-container">
-        <div class="logo">🔐</div>
-        <h2>Admin QRIS</h2>
-        <p class="subtitle">Masukkan password untuk melanjutkan</p>
+    <!-- Background decorations -->
+    <div class="bg-decoration"></div>
+    <div class="bg-decoration"></div>
 
-        <form id="loginForm" autocomplete="off">
+    <main class="login-container" role="main" aria-label="Form login admin">
+        <div class="logo-icon" aria-hidden="true">
+            <i class="fas fa-shield-haltered"></i>
+        </div>
+        
+        <h2>Admin QRIS</h2>
+        <p class="subtitle">Masuk ke dashboard administrasi</p>
+
+        <form id="loginForm" autocomplete="off" novalidate>
             <div class="input-group">
-                <i class="fas fa-lock"></i>
+                <span class="input-icon" aria-hidden="true">
+                    <i class="fas fa-lock"></i>
+                </span>
                 <input 
                     type="password" 
                     id="password" 
-                    placeholder="Masukkan password" 
+                    name="password"
+                    placeholder="Masukkan password"
                     autofocus
                     required
+                    aria-label="Password"
+                    aria-describedby="passwordHelp"
+                    autocomplete="current-password"
                 >
                 <button 
                     type="button" 
                     class="password-toggle" 
                     id="togglePassword"
-                    title="Tampilkan password"
+                    title="Tampilkan/sembunyikan password"
+                    aria-label="Toggle password visibility"
                 >
-                    <i class="fas fa-eye"></i>
+                    <i class="fas fa-eye" aria-hidden="true"></i>
                 </button>
             </div>
 
-            <div class="remember-me">
-                <input type="checkbox" id="rememberMe">
-                <label for="rememberMe">Ingat saya</label>
+            <div class="options-row">
+                <label class="remember-me">
+                    <input type="checkbox" id="rememberMe">
+                    <span>Ingat saya</span>
+                </label>
+                <a href="#" class="forgot-link" onclick="handleForgotPassword(event)">Lupa password?</a>
             </div>
 
-            <button type="submit" id="loginButton">
-                <i class="fas fa-sign-in-alt"></i> Login
+            <button type="submit" class="login-button" id="loginButton">
+                <i class="fas fa-arrow-right-to-bracket"></i>
+                <span>Masuk</span>
             </button>
         </form>
 
-        <div class="error-message" id="errorMessage">
-            <i class="fas fa-exclamation-circle"></i>
-            <span id="errorText">Password salah. Silakan coba lagi.</span>
+        <div class="message-box error-message" id="errorMessage" role="alert">
+            <i class="fas fa-circle-exclamation"></i>
+            <span id="errorText"></span>
         </div>
 
-        <div class="success-message" id="successMessage">
-            <i class="fas fa-check-circle"></i>
-            Login berhasil! Mengalihkan...
+        <div class="message-box success-message" id="successMessage" role="status">
+            <i class="fas fa-circle-check"></i>
+            <span>Login berhasil! Mengalihkan...</span>
         </div>
 
-        <div class="additional-links">
-            <a href="#" onclick="forgotPassword()">Lupa password?</a> • 
-            <a href="#" onclick="contactSupport()">Bantuan</a>
-        </div>
-    </div>
+        <p class="footer-text">
+            Butuh bantuan? <a href="#" onclick="handleSupport(event)">Hubungi support</a>
+        </p>
+    </main>
 
     <script>
-        // Konfigurasi
-        const CONFIG = {
+        'use strict';
+
+        // ============ KONFIGURASI ============
+        const CONFIG = Object.freeze({
             PASSWORD: 'admin123',
             MAX_ATTEMPTS: 5,
-            LOCKOUT_TIME: 5 * 60 * 1000, // 5 menit
+            LOCKOUT_DURATION: 5 * 60 * 1000, // 5 menit dalam milidetik
             REDIRECT_DELAY: 800,
-            REMEMBER_ME_DAYS: 7
-        };
-
-        // State
-        let state = {
-            loginAttempts: 0,
-            isLocked: false,
-            lockoutTimer: null
-        };
-
-        // DOM Elements
-        const elements = {
-            password: document.getElementById('password'),
-            togglePassword: document.getElementById('togglePassword'),
-            loginForm: document.getElementById('loginForm'),
-            loginButton: document.getElementById('loginButton'),
-            errorMessage: document.getElementById('errorMessage'),
-            errorText: document.getElementById('errorText'),
-            successMessage: document.getElementById('successMessage'),
-            rememberMe: document.getElementById('rememberMe')
-        };
-
-        // Initialize
-        document.addEventListener('DOMContentLoaded', () => {
-            checkRememberedSession();
-            checkLockoutStatus();
-            setupEventListeners();
+            REMEMBER_DURATION: 7 * 24 * 60 * 60 * 1000, // 7 hari
+            MIN_PASSWORD_LENGTH: 6,
+            SIMULATED_DELAY: 300
         });
 
+        // ============ STATE MANAGEMENT ============
+        const state = {
+            attempts: 0,
+            isLocked: false,
+            lockoutEndTime: null,
+            timerInterval: null
+        };
+
+        // ============ DOM ELEMENTS ============
+        const DOM = {
+            form: document.getElementById('loginForm'),
+            password: document.getElementById('password'),
+            toggleBtn: document.getElementById('togglePassword'),
+            loginBtn: document.getElementById('loginButton'),
+            rememberMe: document.getElementById('rememberMe'),
+            errorBox: document.getElementById('errorMessage'),
+            errorText: document.getElementById('errorText'),
+            successBox: document.getElementById('successMessage')
+        };
+
+        // ============ INITIALIZATION ============
+        function init() {
+            loadState();
+            setupEventListeners();
+            checkSession();
+        }
+
+        function loadState() {
+            // Load lockout state
+            const lockoutData = sessionStorage.getItem('qrlogin_lockout');
+            if (lockoutData) {
+                try {
+                    const { endTime } = JSON.parse(lockoutData);
+                    if (Date.now() < endTime) {
+                        state.isLocked = true;
+                        state.lockoutEndTime = endTime;
+                        applyLockout();
+                    } else {
+                        sessionStorage.removeItem('qrlogin_lockout');
+                    }
+                } catch (e) {
+                    sessionStorage.removeItem('qrlogin_lockout');
+                }
+            }
+
+            // Load attempts
+            const attemptsData = sessionStorage.getItem('qrlogin_attempts');
+            if (attemptsData) {
+                state.attempts = parseInt(attemptsData, 10) || 0;
+            }
+
+            // Load remember me
+            const rememberData = localStorage.getItem('qrlogin_remember');
+            if (rememberData) {
+                try {
+                    const { expiry } = JSON.parse(rememberData);
+                    if (Date.now() < expiry) {
+                        DOM.rememberMe.checked = true;
+                    } else {
+                        localStorage.removeItem('qrlogin_remember');
+                    }
+                } catch (e) {
+                    localStorage.removeItem('qrlogin_remember');
+                }
+            }
+        }
+
         function setupEventListeners() {
-            // Toggle password visibility
-            elements.togglePassword.addEventListener('click', togglePasswordVisibility);
-            
             // Form submission
-            elements.loginForm.addEventListener('submit', handleLogin);
+            DOM.form.addEventListener('submit', handleSubmit);
             
-            // Enter key on password field
-            elements.password.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') {
+            // Toggle password visibility
+            DOM.toggleBtn.addEventListener('click', togglePassword);
+            
+            // Real-time validation
+            DOM.password.addEventListener('input', debounce(handleInputChange, 150));
+            
+            // Clear error on focus
+            DOM.password.addEventListener('focus', () => {
+                hideError();
+            });
+            
+            // Prevent multiple form submissions
+            DOM.form.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && e.target === DOM.password) {
                     e.preventDefault();
-                    handleLogin(e);
+                    handleSubmit(e);
                 }
             });
 
-            // Clear error on input
-            elements.password.addEventListener('input', () => {
-                if (elements.errorMessage.style.display === 'block') {
-                    elements.errorMessage.style.display = 'none';
-                }
-            });
+            // Handle page visibility for timer accuracy
+            document.addEventListener('visibilitychange', handleVisibilityChange);
         }
 
-        function togglePasswordVisibility() {
-            const type = elements.password.getAttribute('type') === 'password' ? 'text' : 'password';
-            elements.password.setAttribute('type', type);
-            
-            const icon = elements.togglePassword.querySelector('i');
-            icon.classList.toggle('fa-eye');
-            icon.classList.toggle('fa-eye-slash');
-        }
-
-        async function handleLogin(e) {
+        // ============ EVENT HANDLERS ============
+        async function handleSubmit(e) {
             e.preventDefault();
             
-            // Check if locked out
             if (state.isLocked) {
-                showError('Terlalu banyak percobaan. Silakan coba lagi nanti.');
+                showError('Akun terkunci. Silakan tunggu.');
                 return;
             }
 
-            const password = elements.password.value.trim();
+            const password = DOM.password.value.trim();
             
             // Validation
-            if (!password) {
-                showError('Password tidak boleh kosong');
-                shakeElement(elements.password);
+            const validationError = validatePassword(password);
+            if (validationError) {
+                showError(validationError);
+                shakeElement(DOM.password);
                 return;
             }
 
-            if (password.length < 6) {
-                showError('Password minimal 6 karakter');
-                shakeElement(elements.password);
-                return;
-            }
+            // Set loading state
+            setLoading(true);
+            hideMessages();
 
-            // Disable button and show loading
-            setLoadingState(true);
-
-            // Simulate async operation
             try {
-                await simulateAsyncOperation();
+                // Simulate network request
+                await delay(CONFIG.SIMULATED_DELAY);
                 
                 if (password === CONFIG.PASSWORD) {
-                    handleLoginSuccess();
+                    await handleSuccess();
                 } else {
-                    handleLoginFailure();
+                    handleFailure();
                 }
             } catch (error) {
-                showError('Terjadi kesalahan. Silakan coba lagi.');
+                showError('Terjadi kesalahan sistem. Silakan coba lagi.');
+                console.error('Login error:', error);
             } finally {
-                setLoadingState(false);
+                setLoading(false);
             }
         }
 
-        function handleLoginSuccess() {
+        function togglePassword() {
+            const isPassword = DOM.password.type === 'password';
+            DOM.password.type = isPassword ? 'text' : 'password';
+            
+            const icon = DOM.toggleBtn.querySelector('i');
+            icon.className = isPassword ? 'fas fa-eye-slash' : 'fas fa-eye';
+            
+            DOM.toggleBtn.setAttribute('aria-label', 
+                isPassword ? 'Sembunyikan password' : 'Tampilkan password'
+            );
+            
+            // Maintain focus
+            DOM.password.focus();
+        }
+
+        function handleInputChange() {
+            if (DOM.errorBox.style.display !== 'none') {
+                hideError();
+            }
+        }
+
+        function handleVisibilityChange() {
+            if (!document.hidden && state.isLocked && state.lockoutEndTime) {
+                const remaining = state.lockoutEndTime - Date.now();
+                if (remaining <= 0) {
+                    clearLockout();
+                } else {
+                    // Refresh timer display
+                    updateTimerDisplay();
+                }
+            }
+        }
+
+        function handleForgotPassword(e) {
+            e.preventDefault();
+            alert('Hubungi administrator sistem untuk reset password.\nEmail: admin@qrisapp.com');
+        }
+
+        function handleSupport(e) {
+            e.preventDefault();
+            alert('Support QRIS Admin\n📧 support@qrisapp.com\n📞 (021) 1234-5678');
+        }
+
+        // ============ AUTH LOGIC ============
+        async function handleSuccess() {
             // Reset attempts
-            state.loginAttempts = 0;
-            
-            // Handle remember me
-            if (elements.rememberMe.checked) {
-                setRememberedSession();
-            }
-            
-            // Set login session
+            state.attempts = 0;
+            sessionStorage.removeItem('qrlogin_attempts');
+
+            // Set session
             sessionStorage.setItem('qrlogin', '1');
-            
-            // Show success message
-            elements.successMessage.style.display = 'block';
-            elements.errorMessage.style.display = 'none';
-            
-            // Redirect after delay
-            setTimeout(() => {
-                window.location.href = 'index.html';
-            }, CONFIG.REDIRECT_DELAY);
-        }
+            sessionStorage.setItem('qrlogin_time', Date.now().toString());
 
-        function handleLoginFailure() {
-            state.loginAttempts++;
-            
-            const remainingAttempts = CONFIG.MAX_ATTEMPTS - state.loginAttempts;
-            
-            if (state.loginAttempts >= CONFIG.MAX_ATTEMPTS) {
-                lockoutUser();
-                showError('Terlalu banyak percobaan. Akun dikunci selama 5 menit.');
+            // Handle remember me
+            if (DOM.rememberMe.checked) {
+                const expiry = Date.now() + CONFIG.REMEMBER_DURATION;
+                localStorage.setItem('qrlogin_remember', JSON.stringify({
+                    expiry,
+                    created: Date.now()
+                }));
             } else {
-                showError(`Password salah. ${remainingAttempts} percobaan tersisa.`);
+                localStorage.removeItem('qrlogin_remember');
             }
+
+            // Show success
+            DOM.successBox.style.display = 'flex';
+            DOM.loginBtn.disabled = true;
+
+            // Redirect
+            await delay(CONFIG.REDIRECT_DELAY);
+            window.location.href = 'index.html';
+        }
+
+        function handleFailure() {
+            state.attempts++;
+            sessionStorage.setItem('qrlogin_attempts', state.attempts.toString());
+
+            const remaining = CONFIG.MAX_ATTEMPTS - state.attempts;
             
-            shakeElement(elements.password);
-            elements.password.value = '';
-            elements.password.focus();
-        }
-
-        function showError(message) {
-            elements.errorText.textContent = message;
-            elements.errorMessage.style.display = 'block';
-            elements.successMessage.style.display = 'none';
-        }
-
-        function setLoadingState(isLoading) {
-            elements.loginButton.disabled = isLoading;
-            if (isLoading) {
-                elements.loginButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...';
+            if (state.attempts >= CONFIG.MAX_ATTEMPTS) {
+                initiateLockout();
+                showError('Terlalu banyak percobaan. Akun terkunci selama 5 menit.');
             } else {
-                elements.loginButton.innerHTML = '<i class="fas fa-sign-in-alt"></i> Login';
+                const message = remaining === 1 
+                    ? 'Password salah. 1 percobaan tersisa!' 
+                    : `Password salah. ${remaining} percobaan tersisa.`;
+                showError(message);
             }
+
+            shakeElement(DOM.password);
+            DOM.password.value = '';
+            DOM.password.focus();
         }
 
-        function shakeElement(element) {
-            element.style.animation = 'none';
-            element.offsetHeight; // Trigger reflow
-            element.style.animation = 'shake 0.5s ease-in-out';
-            element.addEventListener('animationend', () => {
-                element.style.animation = '';
-            }, { once: true });
-        }
-
-        function lockoutUser() {
+        // ============ LOCKOUT MECHANISM ============
+        function initiateLockout() {
             state.isLocked = true;
-            elements.password.disabled = true;
-            elements.loginButton.disabled = true;
+            state.lockoutEndTime = Date.now() + CONFIG.LOCKOUT_DURATION;
             
-            const lockoutEnd = Date.now() + CONFIG.LOCKOUT_TIME;
-            localStorage.setItem('qrlogin_lockout', lockoutEnd.toString());
-            
-            // Update timer display
-            updateLockoutTimer(lockoutEnd);
+            sessionStorage.setItem('qrlogin_lockout', JSON.stringify({
+                endTime: state.lockoutEndTime,
+                startTime: Date.now()
+            }));
+
+            applyLockout();
+            startTimer();
         }
 
-        function updateLockoutTimer(lockoutEnd) {
-            clearInterval(state.lockoutTimer);
+        function applyLockout() {
+            DOM.password.disabled = true;
+            DOM.loginBtn.disabled = true;
+            DOM.password.value = '';
+        }
+
+        function startTimer() {
+            clearInterval(state.timerInterval);
             
-            state.lockoutTimer = setInterval(() => {
-                const remaining = lockoutEnd - Date.now();
+            state.timerInterval = setInterval(() => {
+                if (!state.lockoutEndTime) {
+                    clearLockout();
+                    return;
+                }
+
+                const remaining = state.lockoutEndTime - Date.now();
                 
                 if (remaining <= 0) {
-                    clearInterval(state.lockoutTimer);
-                    state.isLocked = false;
-                    elements.password.disabled = false;
-                    elements.loginButton.disabled = false;
-                    elements.errorMessage.style.display = 'none';
-                    localStorage.removeItem('qrlogin_lockout');
-                    showError(''); // Clear error
+                    clearLockout();
                 } else {
-                    const minutes = Math.floor(remaining / 60000);
-                    const seconds = Math.floor((remaining % 60000) / 1000);
-                    showError(`Akun dikunci. Coba lagi dalam ${minutes}:${seconds.toString().padStart(2, '0')}`);
+                    updateTimerDisplay();
                 }
             }, 1000);
         }
 
-        function checkLockoutStatus() {
-            const lockoutEnd = localStorage.getItem('qrlogin_lockout');
-            if (lockoutEnd) {
-                const endTime = parseInt(lockoutEnd);
-                if (Date.now() < endTime) {
-                    lockoutUser();
-                    state.isLocked = true;
-                    updateLockoutTimer(endTime);
+        function updateTimerDisplay() {
+            const remaining = state.lockoutEndTime - Date.now();
+            const minutes = Math.floor(remaining / 60000);
+            const seconds = Math.floor((remaining % 60000) / 1000);
+            const timeStr = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+            
+            showError(`Akun terkunci. Silakan tunggu ${timeStr}`);
+        }
+
+        function clearLockout() {
+            state.isLocked = false;
+            state.lockoutEndTime = null;
+            state.attempts = 0;
+            
+            clearInterval(state.timerInterval);
+            sessionStorage.removeItem('qrlogin_lockout');
+            sessionStorage.removeItem('qrlogin_attempts');
+            
+            DOM.password.disabled = false;
+            DOM.loginBtn.disabled = false;
+            hideError();
+            DOM.password.focus();
+        }
+
+        // ============ VALIDATION ============
+        function validatePassword(password) {
+            if (!password) {
+                return 'Password tidak boleh kosong';
+            }
+            
+            if (password.length < CONFIG.MIN_PASSWORD_LENGTH) {
+                return `Password minimal ${CONFIG.MIN_PASSWORD_LENGTH} karakter`;
+            }
+            
+            if (password.includes(' ')) {
+                return 'Password tidak boleh mengandung spasi';
+            }
+            
+            return null;
+        }
+
+        // ============ SESSION CHECK ============
+        function checkSession() {
+            const isLoggedIn = sessionStorage.getItem('qrlogin') === '1';
+            const loginTime = sessionStorage.getItem('qrlogin_time');
+            
+            if (isLoggedIn && loginTime) {
+                // Optional: Add session expiry check
+                const sessionAge = Date.now() - parseInt(loginTime);
+                const maxSessionAge = 24 * 60 * 60 * 1000; // 24 hours
+                
+                if (sessionAge < maxSessionAge) {
+                    window.location.href = 'index.html';
                 } else {
-                    localStorage.removeItem('qrlogin_lockout');
+                    // Session expired, clear it
+                    sessionStorage.removeItem('qrlogin');
+                    sessionStorage.removeItem('qrlogin_time');
                 }
             }
         }
 
-        function setRememberedSession() {
-            const expiry = Date.now() + (CONFIG.REMEMBER_ME_DAYS * 24 * 60 * 60 * 1000);
-            localStorage.setItem('qrlogin_remembered', expiry.toString());
-        }
-
-        function checkRememberedSession() {
-            const remembered = localStorage.getItem('qrlogin_remembered');
-            if (remembered && Date.now() < parseInt(remembered)) {
-                elements.rememberMe.checked = true;
+        // ============ UI HELPERS ============
+        function setLoading(isLoading) {
+            DOM.loginBtn.disabled = isLoading;
+            const btnContent = DOM.loginBtn.querySelector('span');
+            const btnIcon = DOM.loginBtn.querySelector('i');
+            
+            if (isLoading) {
+                btnIcon.className = 'spinner';
+                btnContent.textContent = 'Memproses...';
+                DOM.password.disabled = true;
+            } else {
+                btnIcon.className = 'fas fa-arrow-right-to-bracket';
+                btnContent.textContent = 'Masuk';
+                DOM.password.disabled = state.isLocked;
             }
         }
 
-        function simulateAsyncOperation() {
-            return new Promise(resolve => setTimeout(resolve, 300));
+        function showError(message) {
+            DOM.errorText.textContent = message;
+            DOM.errorBox.style.display = 'flex';
+            DOM.successBox.style.display = 'none';
         }
 
-        // Utility functions for additional links
-        function forgotPassword() {
-            alert('Silakan hubungi administrator sistem untuk reset password.');
+        function hideError() {
+            DOM.errorBox.style.display = 'none';
         }
 
-        function contactSupport() {
-            alert('Hubungi dukungan teknis di: support@qrisadmin.com');
+        function hideMessages() {
+            DOM.errorBox.style.display = 'none';
+            DOM.successBox.style.display = 'none';
         }
 
-        // Clear remembered session on logout (can be called from other pages)
-        window.clearRememberedSession = function() {
-            localStorage.removeItem('qrlogin_remembered');
+        function shakeElement(element) {
+            element.classList.remove('shake');
+            void element.offsetWidth; // Trigger reflow
+            element.classList.add('shake');
+            
+            element.addEventListener('animationend', () => {
+                element.classList.remove('shake');
+            }, { once: true });
+        }
+
+        // ============ UTILITIES ============
+        function delay(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+
+        // ============ PUBLIC API ============
+        // For logout functionality from other pages
+        window.clearQRISSession = function() {
+            sessionStorage.removeItem('qrlogin');
+            sessionStorage.removeItem('qrlogin_time');
+            localStorage.removeItem('qrlogin_remember');
         };
+
+        // ============ START APP ============
+        init();
+
+        // Log untuk debugging (remove di production)
+        console.log('QRIS Admin Login initialized', {
+            version: '2.0.0',
+            environment: 'development',
+            securityLevel: 'enhanced'
+        });
     </script>
 </body>
 </html>
